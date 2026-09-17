@@ -9,6 +9,7 @@ var fall_time: float = 0.85 # 낙하 소요 시간
 var elapsed: float = 0.0
 var damage: float = 450.0
 var blast_radius: float = 180.0
+var has_whistled: bool = false
 
 func initialize(ground_pos: Vector2, bomber_pos: Vector2) -> void:
 	target_pos = ground_pos
@@ -17,10 +18,16 @@ func initialize(ground_pos: Vector2, bomber_pos: Vector2) -> void:
 	global_position = start_pos
 	fall_time = randf_range(0.7, 1.0)
 	elapsed = 0.0
+	has_whistled = false
 
 func _process(delta: float) -> void:
 	elapsed += delta
 	var progress = clampf(elapsed / fall_time, 0.0, 1.0)
+	
+	# 낙하 중 소름 끼치는 고음의 포탄 비행 휘파람음 재생
+	if progress >= 0.25 and not has_whistled:
+		has_whistled = true
+		AudioManager.play_sfx("whistle", 1.2, 0.1)
 	
 	# 중력 가속도 곡선
 	var t = progress * progress

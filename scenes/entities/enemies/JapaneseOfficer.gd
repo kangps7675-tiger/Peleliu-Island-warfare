@@ -69,6 +69,9 @@ func _physics_process(delta: float) -> void:
 			is_bursting = true
 			burst_shots_remaining = 6
 			shot_interval_timer = 0.0
+			var main_scene = get_tree().current_scene
+			if main_scene and main_scene.has_method("spawn_tactical_popup"):
+				main_scene.spawn_tactical_popup(global_position, "🎯 FIRE BURST!", Color(1.0, 0.85, 0.2))
 	else:
 		shot_interval_timer -= delta
 		if shot_interval_timer <= 0.0 and burst_shots_remaining > 0:
@@ -96,7 +99,11 @@ func _fire_type_100_smg_bullet(dir: Vector2) -> void:
 	
 	var spread_dir = dir.rotated(randf_range(-0.1, 0.1))
 	var muzzle = global_position + dir * 30.0 + Vector2(-dir.y, dir.x) * 4.0
-	main_scene.spawn_projectile(muzzle, spread_dir, 10.0, Color(1.0, 0.7, 0.2))
+	main_scene.spawn_projectile(muzzle, spread_dir, 12.0, Color(1.0, 0.7, 0.2), true)
+	
+	# 8mm 남부 황동 탄피 배출
+	if main_scene.has_method("eject_casing"):
+		main_scene.eject_casing(global_position, Vector2(-dir.y, dir.x), "8mm")
 
 func take_damage(amount: float) -> void:
 	current_hp -= amount
@@ -166,3 +173,19 @@ func _draw() -> void:
 	draw_arc(Vector2(-1, 0), 9.0, -PI * 0.3, PI * 0.3, 12, Color(0.08, 0.08, 0.08) * hit_color, 3.0)
 	# 전면 황금색 장교 별 문장 (Gold Star Insignia)
 	draw_circle(Vector2(5, 0), 1.8, Color(1.0, 0.85, 0.15) * hit_color)
+	
+	# =========================================================================
+	# 7. 🎖️ CoH 지휘관 황금성(★) 뱃지 & 장교 체력바 (Tactical Commander Badge)
+	# =========================================================================
+	var badge_y = -24.0
+	# 지휘관 황금성
+	draw_circle(Vector2(0, badge_y), 4.0, Color(1.0, 0.85, 0.15))
+	draw_arc(Vector2(0, badge_y), 5.5, 0, TAU, 12, Color(0.85, 0.65, 0.1), 1.2)
+	
+	# 장교 체력바
+	var hp_ratio = clampf(current_hp / max_hp, 0.0, 1.0)
+	var bar_w = 22.0
+	var bar_rect = Rect2(-bar_w * 0.5, badge_y - 8, bar_w, 3.0)
+	draw_rect(bar_rect, Color(0.1, 0.1, 0.1, 0.8))
+	draw_rect(Rect2(-bar_w * 0.5, badge_y - 8, bar_w * hp_ratio, 3.0), Color(0.9, 0.8, 0.2))
+

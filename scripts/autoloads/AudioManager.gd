@@ -26,6 +26,11 @@ func _ready() -> void:
 		var path = sound_files[s_key]
 		if ResourceLoader.exists(path):
 			sounds[s_key] = load(path)
+			
+	# 절차적 오디오 생성 (도탄 금속음, 포탄 낙하 휘파람음, 파편 비산음)
+	sounds["ricochet"] = _generate_ricochet_sound()
+	sounds["whistle"] = _generate_whistle_sound()
+	sounds["debris"] = _generate_debris_sound()
 	
 	# 오디오 플레이어 풀 생성
 	for i in range(pool_size):
@@ -41,6 +46,64 @@ func _ready() -> void:
 	propeller_player.volume_db = -8.0
 	propeller_player.bus = "Master"
 	add_child(propeller_player)
+
+func _generate_ricochet_sound() -> AudioStreamWAV:
+	var sample_rate: int = 22050
+	var duration: float = 0.28
+	var total_samples: int = int(sample_rate * duration)
+	var data = PackedByteArray()
+	data.resize(total_samples)
+	for i in range(total_samples):
+		var t = float(i) / float(sample_rate)
+		var freq = 2800.0 - t * 4500.0
+		var envelope = exp(-t * 18.0)
+		var wave = sin(TAU * freq * t) * envelope
+		var val = clampi(int((wave * 0.95 + 1.0) * 127.5), 0, 255)
+		data[i] = val
+	var stream = AudioStreamWAV.new()
+	stream.format = AudioStreamWAV.FORMAT_8_BITS
+	stream.mix_rate = sample_rate
+	stream.data = data
+	return stream
+
+func _generate_whistle_sound() -> AudioStreamWAV:
+	var sample_rate: int = 22050
+	var duration: float = 0.75
+	var total_samples: int = int(sample_rate * duration)
+	var data = PackedByteArray()
+	data.resize(total_samples)
+	for i in range(total_samples):
+		var t = float(i) / float(sample_rate)
+		# 2400Hz에서 650Hz로 급강하하는 포탄 비행 휘파람
+		var freq = 2400.0 - (t / duration) * 1750.0
+		var envelope = (t / duration) * 0.85 # 크레센도
+		var wave = sin(TAU * freq * t) * envelope
+		var val = clampi(int((wave * 0.9 + 1.0) * 127.5), 0, 255)
+		data[i] = val
+	var stream = AudioStreamWAV.new()
+	stream.format = AudioStreamWAV.FORMAT_8_BITS
+	stream.mix_rate = sample_rate
+	stream.data = data
+	return stream
+
+func _generate_debris_sound() -> AudioStreamWAV:
+	var sample_rate: int = 22050
+	var duration: float = 0.45
+	var total_samples: int = int(sample_rate * duration)
+	var data = PackedByteArray()
+	data.resize(total_samples)
+	for i in range(total_samples):
+		var t = float(i) / float(sample_rate)
+		var noise = randf_range(-1.0, 1.0)
+		var envelope = exp(-t * 8.0)
+		var wave = noise * envelope
+		var val = clampi(int((wave * 0.8 + 1.0) * 127.5), 0, 255)
+		data[i] = val
+	var stream = AudioStreamWAV.new()
+	stream.format = AudioStreamWAV.FORMAT_8_BITS
+	stream.mix_rate = sample_rate
+	stream.data = data
+	return stream
 
 func play_sfx(sound_name: String, vol_db: float = 0.0, pitch_var: float = 0.08) -> void:
 	if not sounds.has(sound_name):

@@ -4,7 +4,8 @@ class_name EnemyOutpost
 @export var max_hp: float = 180.0
 @export var current_hp: float = 180.0
 @export var respawn_time: float = 15.0 # 15초 뒤 지하에서 재건축 부활!
-@export var infantry_scene: PackedScene = preload("res://scenes/entities/enemies/EnemyBase.tscn")
+@export var soldier_scene: PackedScene = preload("res://scenes/entities/enemies/JapaneseSoldier.tscn")
+@export var officer_scene: PackedScene = preload("res://scenes/entities/enemies/JapaneseOfficer.tscn")
 @export var gem_scene: PackedScene = preload("res://scenes/entities/drops/Gem.tscn")
 
 var is_destroyed: bool = false
@@ -20,6 +21,7 @@ func _ready() -> void:
 	collision_mask = 3  # Player Head & Body
 	add_to_group("outposts")
 	add_to_group("enemies")
+	add_to_group("heavy_armor")
 	current_hp = max_hp
 
 var smoke_timer: float = 0.0
@@ -41,8 +43,8 @@ func _process(delta: float) -> void:
 	
 	spawn_soldier_timer -= delta
 	if spawn_soldier_timer <= 0.0:
-		spawn_soldier_timer = 2.8
-		_spawn_soldier()
+		spawn_soldier_timer = 3.5
+		_spawn_infantry_reinforcement()
 		
 	if flash_timer > 0.0:
 		flash_timer -= delta
@@ -53,9 +55,14 @@ func _process(delta: float) -> void:
 	
 	queue_redraw()
 
-func _spawn_soldier() -> void:
-	if infantry_scene:
-		var soldier = infantry_scene.instantiate()
+func _spawn_infantry_reinforcement() -> void:
+	# 벙커에서 일본군 보병 혹은 장교 출격
+	if randf() < 0.25 and officer_scene:
+		var officer = officer_scene.instantiate()
+		officer.global_position = global_position + Vector2(randf_range(-25, 25), 45.0)
+		get_parent().add_child(officer)
+	elif soldier_scene:
+		var soldier = soldier_scene.instantiate()
 		soldier.global_position = global_position + Vector2(randf_range(-30, 30), 45.0)
 		get_parent().add_child(soldier)
 
@@ -79,8 +86,11 @@ func _destroy() -> void:
 		sprite.modulate = Color(0.18, 0.16, 0.15, 0.85) # 검게 탄 콘크리트 폐허
 	
 	var main_scene = get_tree().current_scene
-	if main_scene and main_scene.has_method("spawn_heavy_explosion"):
-		main_scene.spawn_heavy_explosion(global_position, 130.0)
+	if main_scene:
+		if main_scene.has_method("spawn_heavy_explosion"):
+			main_scene.spawn_heavy_explosion(global_position, 130.0)
+		if main_scene.has_method("spawn_tactical_popup"):
+			main_scene.spawn_tactical_popup(global_position, "💥 BUNKER DESTROYED!", Color(1.0, 0.4, 0.2))
 	
 	# 대량 보급품 드롭
 	if gem_scene:
@@ -129,3 +139,10 @@ func _draw() -> void:
 		for ri in range(8):
 			var r_angle = ri * (PI / 4.0)
 			draw_line(center_sun, center_sun + Vector2.RIGHT.rotated(r_angle) * 11.0, Color(0.85, 0.12, 0.15), 1.5)
+			
+		# 3. 🎖️ CoH 벙커 요새 뱃지 & 체력바
+		var bar_w = 42.0
+		var hp_r = clampf(current_hp / max_hp, 0.0, 1.0)
+		draw_rect(Rect2(-bar_w * 0.5, -46, bar_w, 4.0), Color(0.1, 0.1, 0.1, 0.85))
+		draw_rect(Rect2(-bar_w * 0.5, -46, bar_w * hp_r, 4.0), Color(0.2, 0.85, 0.3))
+		draw_rect(Rect2(-bar_w * 0.5, -46, bar_w, 4.0), Color.BLACK, false, 1.0)

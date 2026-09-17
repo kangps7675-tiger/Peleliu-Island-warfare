@@ -56,6 +56,15 @@ var tread_marks: Array = []    # 무한궤도 자국 [{pos: Vector2, rot: float,
 var exhaust_smokes: Array = [] # 디젤 배기 연무 [{pos: Vector2, vel: Vector2, r: float, alpha: float, life: float}]
 var heavy_explosions: Array = [] # 대폭발 이펙트 [{pos: Vector2, max_r: float, elapsed: float, duration: float}]
 
+# 🎖️ Company of Heroes / Gates of Hell 전술 FX 시스템
+var tactical_popups: Array = []        # 전술 플로팅 텍스트 [{pos: Vector2, text: String, col: Color, elapsed: float, dur: float, vel: Vector2}]
+var ejected_casings: Array = []        # 황동 탄피 배출 [{pos: Vector2, vel: Vector2, rot: float, rot_vel: float, col: Color, alpha: float, bounces: int, life: float, l: float, w: float}]
+var dirt_shrapnel: Array = []          # 흙먼지 & 비산 파편 [{pos: Vector2, vel: Vector2, r: float, col: Color, life: float, max_life: float}]
+var vehicle_hulks: Array = []          # 불타는 전차/차량 잔해 [{pos: Vector2, rot: float, type: String, elapsed: float, duration: float, smoke_timer: float}]
+var ambient_dust_particles: Array = [] # 전선 부유 흙먼지 [{pos: Vector2, vel: Vector2, r: float, alpha: float}]
+var barbed_wires: Array = []           # 가시 철조망 방어선 [{p1: Vector2, p2: Vector2}]
+var ammo_caches: Array = []            # 군수품 탄약 상자/드럼통 [{pos: Vector2, rot: float, type: int}]
+
 # 포위 섬멸 마법진 시각 효과
 var current_seal_polygon: PackedVector2Array = PackedVector2Array()
 var seal_alpha: float = 0.0
@@ -217,6 +226,40 @@ func _setup_environment_features() -> void:
 		
 	# 3D RTS 아이소메트릭 Y-소팅: 위쪽(북쪽) 나무부터 아래쪽(남쪽) 나무 순서대로 렌더링하여 자연스러운 입체 차폐 구현
 	jungle_trees.sort_custom(func(a, b): return a["pos"].y < b["pos"].y)
+	
+	# 8. 🎖️ CoH / GoH 가시 철조망 방어선 & 군수품 탄약 상자 & 전선 흙먼지 파티클
+	_setup_battlefield_props()
+
+func _setup_battlefield_props() -> void:
+	# 가시 철조망 (Barbed Wire entanglements)
+	barbed_wires = [
+		{"p1": island_center + Vector2(-550, -320), "p2": island_center + Vector2(-380, -320)},
+		{"p1": island_center + Vector2(380, -320), "p2": island_center + Vector2(550, -320)},
+		{"p1": island_center + Vector2(-520, 360), "p2": island_center + Vector2(-350, 360)},
+		{"p1": island_center + Vector2(350, 360), "p2": island_center + Vector2(520, 360)},
+		{"p1": island_center + Vector2(-150, 680), "p2": island_center + Vector2(150, 680)},
+		{"p1": island_center + Vector2(-180, -620), "p2": island_center + Vector2(180, -620)}
+	]
+	
+	# 목재 탄약 상자 & 철제 캔 & 드럼통 (Ammo Caches & Fuel Drums)
+	for i in range(24):
+		var ang = randf() * TAU
+		var dist = randf_range(300.0, 1100.0)
+		var p = island_center + Vector2(cos(ang) * dist, sin(ang) * (dist * 0.75))
+		ammo_caches.append({
+			"pos": p,
+			"rot": randf() * TAU,
+			"type": randi() % 3 # 0: 대형 목재 상자, 1: 녹색 금속 탄약캔, 2: 철제 연료 드럼통
+		})
+		
+	# 전선 대기 흙먼지 부유 입자
+	for i in range(45):
+		ambient_dust_particles.append({
+			"pos": island_center + Vector2(randf_range(-1600, 1600), randf_range(-1100, 1100)),
+			"vel": Vector2(randf_range(15, 35), randf_range(-8, 8)),
+			"r": randf_range(1.5, 3.5),
+			"alpha": randf_range(0.12, 0.32)
+		})
 
 func _process(delta: float) -> void:
 	# 1. 10분 핵폭탄 시퀀스 진행 중일 때
@@ -407,11 +450,11 @@ func _spawn_kamikaze_raid() -> void:
 		kami.global_position = spawn_pos
 		enemies_container.add_child(kami)
 
-func spawn_projectile(pos: Vector2, dir: Vector2, dmg: float, col: Color) -> void:
+func spawn_projectile(pos: Vector2, dir: Vector2, dmg: float, col: Color, enemy_shot: bool = false) -> void:
 	if proj_tscn:
 		var p = proj_tscn.instantiate()
 		if p.has_method("initialize"):
-			p.initialize(pos, dir, dmg, col)
+			p.initialize(pos, dir, dmg, col, enemy_shot)
 		projectiles_container.add_child(p)
 
 func spawn_cannon_shell(pos: Vector2, dir: Vector2) -> void:
@@ -421,7 +464,7 @@ func spawn_cannon_shell(pos: Vector2, dir: Vector2) -> void:
 			shell.initialize(pos, dir)
 		projectiles_container.add_child(shell)
 
-# 💥 컴퍼니 오브 히어로즈 급 카타스트로픽 대폭발 연출
+# 💥 컴퍼니 오브 히어로즈 급 카타스트로픽 대폭발 연출 (충격파 진동 & 비산 흙먼지)
 func spawn_heavy_explosion(pos: Vector2, max_radius: float) -> void:
 	heavy_explosions.append({
 		"pos": pos,
@@ -430,6 +473,86 @@ func spawn_heavy_explosion(pos: Vector2, max_radius: float) -> void:
 		"duration": 0.55
 	})
 	add_crater_decal(pos, max_radius * 0.35)
+	spawn_dirt_eruption(pos, int(max_radius * 0.12), max_radius * 1.5)
+	trigger_screen_shake(pos, minf(max_radius * 0.25, 30.0), 1100.0)
+
+# 📯 CoH 전술 플로팅 텍스트 팝업 (도탄, 반자이, 점사 등)
+func spawn_tactical_popup(pos: Vector2, text: String, col: Color = Color.WHITE, dur: float = 1.1) -> void:
+	tactical_popups.append({
+		"pos": pos + Vector2(randf_range(-12, 12), -15.0),
+		"text": text,
+		"col": col,
+		"elapsed": 0.0,
+		"dur": dur,
+		"vel": Vector2(0, -38.0)
+	})
+	if tactical_popups.size() > 50:
+		tactical_popups.pop_front()
+
+# 🔫 실시간 황동 탄피 배출 시스템 (20mm 오토캐논, 7.7mm 아리사카, 8mm 남부)
+func eject_casing(pos: Vector2, eject_dir: Vector2, caliber: String = "20mm") -> void:
+	var speed = randf_range(80.0, 160.0)
+	var casing_vel = eject_dir.rotated(randf_range(-0.4, 0.4)) * speed
+	var l = 7.5 if caliber == "20mm" else (5.5 if caliber == "7.7mm" else 4.2)
+	var w = 2.6 if caliber == "20mm" else 1.8
+	var col = Color(0.95, 0.78, 0.28) if caliber == "20mm" else Color(0.88, 0.70, 0.24)
+	ejected_casings.append({
+		"pos": pos,
+		"vel": casing_vel,
+		"rot": randf() * TAU,
+		"rot_vel": randf_range(-15.0, 15.0),
+		"col": col,
+		"alpha": 0.95,
+		"life": 7.0,
+		"l": l,
+		"w": w
+	})
+	if ejected_casings.size() > 180:
+		ejected_casings.pop_front()
+
+# 🌋 고폭탄/포탄 착탄 흙먼지 기둥 & 암석 비산 파편
+func spawn_dirt_eruption(pos: Vector2, count: int = 8, max_speed: float = 180.0) -> void:
+	for i in range(count):
+		var angle = randf() * TAU
+		var spd = randf_range(35.0, max_speed)
+		var r = randf_range(2.5, 6.0)
+		var life = randf_range(0.35, 0.65)
+		var c_val = randf_range(0.18, 0.38)
+		var dirt_col = Color(c_val * 1.3, c_val, c_val * 0.7)
+		dirt_shrapnel.append({
+			"pos": pos,
+			"vel": Vector2.RIGHT.rotated(angle) * spd,
+			"r": r,
+			"col": dirt_col,
+			"life": life,
+			"max_life": life
+		})
+	if dirt_shrapnel.size() > 180:
+		dirt_shrapnel = dirt_shrapnel.slice(dirt_shrapnel.size() - 180)
+
+# 🚜 불타는 전차/차량 잔해 (CoH Burning Wreck Hulks)
+func spawn_vehicle_hulk(pos: Vector2, rot: float, type: String = "chiha") -> void:
+	vehicle_hulks.append({
+		"pos": pos,
+		"rot": rot,
+		"type": type,
+		"elapsed": 0.0,
+		"duration": 18.0,
+		"smoke_timer": 0.0
+	})
+	if vehicle_hulks.size() > 25:
+		vehicle_hulks.pop_front()
+
+# 🫨 거리 비례 카메라 충격파 진동 (Distance-Attenuated Screen Shake)
+func trigger_screen_shake(pos: Vector2, intensity: float = 16.0, max_dist: float = 900.0) -> void:
+	if not is_instance_valid(snake_head):
+		return
+	var d = snake_head.global_position.distance_to(pos)
+	if d <= max_dist:
+		var factor = 1.0 - (d / max_dist)
+		var shake = intensity * factor
+		if snake_head.get("camera_shake_amount") != null:
+			snake_head.camera_shake_amount = maxf(snake_head.camera_shake_amount, shake)
 
 # 🌑 영구 포탄 분화구 데칼
 func add_crater_decal(pos: Vector2, r: float) -> void:
@@ -483,6 +606,58 @@ func _update_visual_fx(delta: float) -> void:
 		if sm["life"] > 0.0:
 			active_smokes.append(sm)
 	exhaust_smokes = active_smokes
+	
+	# 3. 전술 플로팅 텍스트 업데이트
+	var active_popups: Array = []
+	for pop in tactical_popups:
+		pop["elapsed"] += delta
+		pop["pos"] += pop["vel"] * delta
+		if pop["elapsed"] < pop["dur"]:
+			active_popups.append(pop)
+	tactical_popups = active_popups
+	
+	# 4. 황동 탄피 배출 물리 (감속 및 바닥 안착)
+	var active_casings: Array = []
+	for c in ejected_casings:
+		c["pos"] += c["vel"] * delta
+		c["vel"] *= 0.88 # 지면 마찰 감속
+		c["rot"] += c["rot_vel"] * delta
+		c["rot_vel"] *= 0.90
+		c["life"] -= delta
+		if c["life"] < 1.5:
+			c["alpha"] = c["life"] / 1.5 * 0.95
+		if c["life"] > 0.0:
+			active_casings.append(c)
+	ejected_casings = active_casings
+	
+	# 5. 흙먼지 & 비산 파편 업데이트
+	var active_shrapnel: Array = []
+	for sh in dirt_shrapnel:
+		sh["pos"] += sh["vel"] * delta
+		sh["vel"] *= 0.92
+		sh["life"] -= delta
+		if sh["life"] > 0.0:
+			active_shrapnel.append(sh)
+	dirt_shrapnel = active_shrapnel
+	
+	# 6. 불타는 전차 잔해 업데이트 (흑색 오일 연기 방출)
+	var active_hulks: Array = []
+	for h in vehicle_hulks:
+		h["elapsed"] += delta
+		h["smoke_timer"] -= delta
+		if h["smoke_timer"] <= 0.0:
+			h["smoke_timer"] = randf_range(0.12, 0.22)
+			add_exhaust_smoke(h["pos"] + Vector2(randf_range(-12, 12), randf_range(-10, 10)), Vector2(randf_range(-10, 20), -65.0))
+		if h["elapsed"] < h["duration"]:
+			active_hulks.append(h)
+	vehicle_hulks = active_hulks
+	
+	# 7. 전선 부유 흙먼지 입자 이동
+	for dp in ambient_dust_particles:
+		dp["pos"] += dp["vel"] * delta
+		if dp["pos"].x > island_center.x + island_radius_x + 200.0:
+			dp["pos"].x = island_center.x - island_radius_x - 100.0
+			dp["pos"].y = island_center.y + randf_range(-island_radius_y, island_radius_y)
 
 func _on_loop_completed(polygon: PackedVector2Array, _enemies: Array) -> void:
 	current_seal_polygon = polygon
@@ -595,6 +770,12 @@ func _draw() -> void:
 	_draw_flak_pits()
 	
 	# =========================================================================
+	# 4-H. 🪖 가시 철조망 방어선 & 📦 군수품 탄약 상자/드럼통 (Barbed Wire & Ammo Caches)
+	# =========================================================================
+	_draw_barbed_wires()
+	_draw_ammo_caches()
+	
+	# =========================================================================
 	# 5. 🛩️ 펠렐리우 십자 비행장 (2개의 교차 아스팔트 활주로 + 유도로 + 엄체호)
 	# =========================================================================
 	# 활주로 아스팔트 베이스
@@ -620,18 +801,11 @@ func _draw() -> void:
 	draw_rect(Rect2(island_center.x - 380, island_center.y + 110, 110, 80), Color(0.12, 0.12, 0.14), false, 3.0)
 	
 	# =========================================================================
-	# 6. 🚜 무한궤도 자국 & 🌑 포탄 분화구 데칼 렌더링
+	# 6. 🚜 무한궤도 자국 & 🌑 포탄 분화구 & 🔫 황동 탄피 & 🔥 불타는 전차 잔해
 	# =========================================================================
-	for tm in tread_marks:
-		var dir = Vector2.RIGHT.rotated(tm["rot"])
-		var normal = Vector2(-dir.y, dir.x) * (tm["w"] * 0.5)
-		draw_line(tm["pos"] - normal, tm["pos"] + normal, Color(0.1, 0.08, 0.06, tm["alpha"] * 0.6), 4.0)
-		
-	for cr in craters:
-		# 검게 탄 포탄 구덩이
-		draw_circle(cr["pos"], cr["r"], Color(0.08, 0.07, 0.06, cr["alpha"] * 0.85))
-		draw_circle(cr["pos"], cr["r"] * 0.55, Color(0.04, 0.03, 0.02, cr["alpha"] * 0.95))
-		draw_arc(cr["pos"], cr["r"], 0, TAU, 16, Color(0.18, 0.14, 0.1, cr["alpha"] * 0.7), 2.0)
+	_draw_tread_marks_and_craters()
+	_draw_ejected_casings()
+	_draw_vehicle_hulks()
 	
 	# =========================================================================
 	# 7. 🌴 270그루 3D RTS 열대 수목 (야자수 & 정글림 입체 투영 그림자 + 수관)
@@ -646,8 +820,9 @@ func _draw() -> void:
 		draw_circle(sm["pos"], sm["r"] * 0.5, Color(0.1, 0.1, 0.12, sm["alpha"] * 0.75))
 		
 	# =========================================================================
-	# 9. 💥 다단계 카타스트로픽 대폭발 이펙트 (화염구 + 충격파 + 섬광)
+	# 9. 💥 다단계 카타스트로픽 대폭발 & 🌋 흙먼지 비산 파편
 	# =========================================================================
+	_draw_dirt_shrapnel()
 	for ex in heavy_explosions:
 		var p = ex["elapsed"] / ex["duration"]
 		var curr_r = ex["max_r"] * ease(p, 0.25)
@@ -706,6 +881,12 @@ func _draw() -> void:
 		# 화면 전체 백색 섬광 (Nuclear Flash)
 		if nuclear_flash > 0.0:
 			draw_rect(Rect2(-2000, -2000, 7500, 6500), Color(1.0, 1.0, 0.98, nuclear_flash))
+			
+	# =========================================================================
+	# 13. 🎖️ 전선 부유 흙먼지 & CoH 전술 플로팅 텍스트 팝업 (Top-Level Tactical Popups)
+	# =========================================================================
+	_draw_ambient_dust()
+	_draw_tactical_popups()
 
 func _draw_high_altitude_b29(pos: Vector2) -> void:
 	# 1. 지상 투영 부드러운 그림자 (남동쪽 220px 오프셋)
@@ -1012,3 +1193,150 @@ func _draw_jungle_trees(wave_time: float) -> void:
 				var c_center = canopy_pos + d_off
 				draw_circle(c_center, r * 0.65, base_col)
 				draw_circle(c_center + Vector2(-r * 0.15, -r * 0.18), r * 0.42, base_col.lightened(0.3))
+
+func _draw_barbed_wires() -> void:
+	for wire in barbed_wires:
+		var p1: Vector2 = wire["p1"]
+		var p2: Vector2 = wire["p2"]
+		# 그림자
+		draw_line(p1 + Vector2(3, 4), p2 + Vector2(3, 4), Color(0.04, 0.06, 0.04, 0.35), 3.0)
+		# 메인 가시철선 케이블
+		draw_line(p1, p2, Color(0.28, 0.30, 0.32), 2.2)
+		draw_line(p1, p2, Color(0.48, 0.50, 0.52), 1.2)
+		
+		# X자형 목재 지지대 & 철조망 나선 코일
+		var count = int(p1.distance_to(p2) / 28.0)
+		for i in range(count + 1):
+			var t = float(i) / maxf(1.0, float(count))
+			var post_pos = p1.lerp(p2, t)
+			# X자 지지대 (Crossed wooden pickets)
+			draw_line(post_pos + Vector2(-4, -6), post_pos + Vector2(4, 6), Color(0.32, 0.22, 0.12), 2.5)
+			draw_line(post_pos + Vector2(-4, 6), post_pos + Vector2(4, -6), Color(0.38, 0.26, 0.15), 2.5)
+			# 가시 코일 링 (Razor coil loop)
+			draw_arc(post_pos, 7.0, 0, TAU, 12, Color(0.45, 0.48, 0.52, 0.8), 1.6)
+
+func _draw_ammo_caches() -> void:
+	for cache in ammo_caches:
+		var pos: Vector2 = cache["pos"]
+		var rot: float = cache["rot"]
+		var type: int = cache["type"]
+		
+		# 지면 그림자
+		draw_circle(pos + Vector2(4, 5), 10.0, Color(0.04, 0.06, 0.04, 0.4))
+		
+		if type == 0:
+			# 📦 대형 목재 탄약 상자 (Wooden Ammo Crate)
+			var w = 22.0
+			var h = 14.0
+			var rect = Rect2(-w * 0.5, -h * 0.5, w, h)
+			draw_set_transform(pos, rot, Vector2.ONE)
+			draw_rect(rect, Color(0.40, 0.28, 0.16))
+			draw_rect(rect, Color(0.18, 0.12, 0.08), false, 2.0)
+			# 보강 띠 철물 & 스텐실 라인
+			draw_line(Vector2(-w * 0.3, -h * 0.5), Vector2(-w * 0.3, h * 0.5), Color(0.2, 0.2, 0.22), 2.0)
+			draw_line(Vector2(w * 0.3, -h * 0.5), Vector2(w * 0.3, h * 0.5), Color(0.2, 0.2, 0.22), 2.0)
+			draw_line(Vector2(-w * 0.2, 0), Vector2(w * 0.2, 0), Color(0.9, 0.85, 0.6, 0.8), 1.5)
+			draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
+		elif type == 1:
+			# 🧰 녹색 금속 탄약캔 (Olive Metal Ammo Can)
+			var w = 15.0
+			var h = 9.0
+			var rect = Rect2(-w * 0.5, -h * 0.5, w, h)
+			draw_set_transform(pos, rot, Vector2.ONE)
+			draw_rect(rect, Color(0.28, 0.34, 0.20))
+			draw_rect(rect, Color(0.12, 0.16, 0.08), false, 1.8)
+			draw_line(Vector2(-w * 0.3, -1), Vector2(w * 0.3, -1), Color(0.85, 0.75, 0.2, 0.7), 1.2) # 황색 규격 마킹
+			draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
+		else:
+			# 🛢️ 55갤런 철제 연료 드럼통 (Oil Drum)
+			draw_circle(pos, 8.0, Color(0.22, 0.25, 0.28))
+			draw_circle(pos, 7.0, Color(0.32, 0.36, 0.40))
+			draw_arc(pos, 5.0, 0, TAU, 16, Color(0.18, 0.20, 0.22), 2.0)
+			draw_circle(pos + Vector2(2.5, -2.5), 2.0, Color(0.12, 0.12, 0.14)) # 주유구 캡
+
+func _draw_tread_marks_and_craters() -> void:
+	for tm in tread_marks:
+		var dir = Vector2.RIGHT.rotated(tm["rot"])
+		var normal = Vector2(-dir.y, dir.x) * (tm["w"] * 0.5)
+		draw_line(tm["pos"] - normal, tm["pos"] + normal, Color(0.1, 0.08, 0.06, tm["alpha"] * 0.6), 4.0)
+		
+	for cr in craters:
+		draw_circle(cr["pos"], cr["r"], Color(0.08, 0.07, 0.06, cr["alpha"] * 0.85))
+		draw_circle(cr["pos"], cr["r"] * 0.55, Color(0.04, 0.03, 0.02, cr["alpha"] * 0.95))
+		draw_arc(cr["pos"], cr["r"], 0, TAU, 16, Color(0.18, 0.14, 0.1, cr["alpha"] * 0.7), 2.0)
+
+func _draw_ejected_casings() -> void:
+	for c in ejected_casings:
+		var rot: float = c["rot"]
+		var l: float = c["l"]
+		var w: float = c["w"]
+		var col: Color = c["col"]
+		var alpha: float = c["alpha"]
+		var casing_col = Color(col.r, col.g, col.b, alpha)
+		var p = c["pos"]
+		
+		# 남동쪽 미세 그림자
+		var p_dir = Vector2.RIGHT.rotated(rot) * (l * 0.5)
+		draw_line(p + Vector2(1.5, 2.0) - p_dir, p + Vector2(1.5, 2.0) + p_dir, Color(0.02, 0.03, 0.02, alpha * 0.5), w)
+		# 황동 탄피 본체
+		draw_line(p - p_dir, p + p_dir, casing_col, w)
+		# 탄피 림 (후면 뇌관 테두리)
+		draw_circle(p - p_dir, w * 0.6, casing_col.darkened(0.4))
+
+func _draw_vehicle_hulks() -> void:
+	var f_time = Time.get_ticks_msec() * 0.015
+	for h in vehicle_hulks:
+		var pos: Vector2 = h["pos"]
+		var rot: float = h["rot"]
+		var p_dir = Vector2.RIGHT.rotated(rot)
+		
+		# 1. 지면 화재 그을림 (Scorched earth burn decal)
+		draw_circle(pos + Vector2(5, 7), 28.0, Color(0.04, 0.03, 0.03, 0.85))
+		
+		# 2. 검게 탄 전차 차체 잔해 (Charred Tank Hull)
+		draw_set_transform(pos, rot, Vector2.ONE)
+		draw_rect(Rect2(-24, -15, 48, 30), Color(0.12, 0.11, 0.10))
+		draw_rect(Rect2(-24, -15, 48, 30), Color(0.05, 0.05, 0.05), false, 2.5)
+		# 뒤틀린 포탑
+		draw_circle(Vector2(-3, 2), 11.0, Color(0.10, 0.09, 0.08))
+		# 부러진 57mm 주포신
+		draw_line(Vector2(6, 2), Vector2(19, -3), Color(0.08, 0.08, 0.08), 3.5)
+		draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
+		
+		# 3. 맹렬하게 타오르는 붉은 화염 & 탄약 스파크 (Flickering Ruin Flames)
+		for fi in range(3):
+			var f_offset = Vector2(sin(f_time + fi * 2.0) * 8.0, cos(f_time * 1.5 + fi) * 6.0)
+			var fire_pos = pos + f_offset
+			var fire_r = 9.0 + sin(f_time * 2.0 + fi) * 4.0
+			draw_circle(fire_pos, fire_r, Color(2.6, 0.8, 0.1, 0.85))
+			draw_circle(fire_pos - Vector2(0, 3), fire_r * 0.55, Color(3.5, 2.2, 1.0, 0.95))
+			# 튀는 탄약 불꽃
+			var spark_pos = pos + Vector2(sin(f_time * 4.0 + fi) * 14.0, -12.0 - sin(f_time * 3.0 + fi) * 8.0)
+			draw_circle(spark_pos, 2.2, Color(3.8, 2.5, 0.8))
+
+func _draw_dirt_shrapnel() -> void:
+	for sh in dirt_shrapnel:
+		var p: float = sh["life"] / sh["max_life"]
+		var col: Color = sh["col"]
+		draw_circle(sh["pos"], sh["r"] * (0.5 + p * 0.5), Color(col.r, col.g, col.b, p))
+
+func _draw_ambient_dust() -> void:
+	for dp in ambient_dust_particles:
+		draw_circle(dp["pos"], dp["r"], Color(0.88, 0.82, 0.68, dp["alpha"]))
+
+func _draw_tactical_popups() -> void:
+	var font = ThemeDB.fallback_font
+	var font_size = 14
+	for pop in tactical_popups:
+		var text: String = pop["text"]
+		var col: Color = pop["col"]
+		var alpha: float = clampf(1.0 - (pop["elapsed"] / pop["dur"]), 0.0, 1.0)
+		var txt_size = font.get_string_size(text, HORIZONTAL_ALIGNMENT_CENTER, -1, font_size)
+		var draw_pos = pop["pos"] - txt_size * 0.5 + Vector2(0, font.get_ascent(font_size))
+		
+		# 묵직한 군사 스텐실 드롭 섀도우 (Military Stencil Drop Shadow)
+		draw_string(font, draw_pos + Vector2(1.5, 1.5), text, HORIZONTAL_ALIGNMENT_CENTER, -1, font_size, Color(0.0, 0.0, 0.0, alpha * 0.95))
+		draw_string(font, draw_pos + Vector2(-1.0, 1.0), text, HORIZONTAL_ALIGNMENT_CENTER, -1, font_size, Color(0.0, 0.0, 0.0, alpha * 0.75))
+		# 전면 발광 텍스트
+		draw_string(font, draw_pos, text, HORIZONTAL_ALIGNMENT_CENTER, -1, font_size, Color(col.r, col.g, col.b, alpha))
+

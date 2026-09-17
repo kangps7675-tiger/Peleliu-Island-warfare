@@ -46,6 +46,10 @@ func _physics_process(delta: float) -> void:
 	
 	# 1. 근접 거리(240px 이하) 진입 시 ➔ 반자이 총검 돌격 (Bayonet Charge)!
 	if dist < 240.0:
+		if not is_bayonet_charging:
+			var main_scene = get_tree().current_scene
+			if main_scene and main_scene.has_method("spawn_tactical_popup"):
+				main_scene.spawn_tactical_popup(global_position, "⚔️ BANZAI!", Color(1.0, 0.35, 0.3))
 		is_bayonet_charging = true
 		is_aiming = false
 		velocity = dir * charge_speed
@@ -94,7 +98,12 @@ func _fire_arisaka_rifle(dir: Vector2) -> void:
 	AudioManager.play_sfx("flak", -9.0, 0.4)
 	jab_animation_timer = 0.15 # 반동 모션
 	var muzzle = global_position + dir * 36.0
-	main_scene.spawn_projectile(muzzle, dir.rotated(randf_range(-0.06, 0.06)), 15.0, Color(1.0, 0.85, 0.4))
+	var spread_dir = dir.rotated(randf_range(-0.06, 0.06))
+	main_scene.spawn_projectile(muzzle, spread_dir, 16.0, Color(1.0, 0.85, 0.4), true)
+	
+	# 7.7mm 황동 탄피 배출
+	if main_scene.has_method("eject_casing"):
+		main_scene.eject_casing(global_position, Vector2(-dir.y, dir.x), "7.7mm")
 
 func take_damage(amount: float) -> void:
 	current_hp -= amount
@@ -158,3 +167,21 @@ func _draw() -> void:
 	draw_arc(Vector2(-1, 0), 7.0, 0, TAU, 16, Color(0.22, 0.26, 0.16) * hit_color, 1.5)
 	# 철모 전면 일본군 노란색 오각별(★) 군표
 	draw_circle(Vector2(4, 0), 1.6, Color(1.0, 0.85, 0.1) * hit_color)
+	
+	# =========================================================================
+	# 7. 🎖️ CoH 보병 셰브론(V) 뱃지 & 분대 체력 핍 (Tactical Infantry Badge)
+	# =========================================================================
+	var badge_y = -22.0
+	# 보병 V자 셰브론
+	draw_line(Vector2(-4, badge_y - 3), Vector2(0, badge_y + 2), Color(0.85, 0.2, 0.2), 2.0)
+	draw_line(Vector2(4, badge_y - 3), Vector2(0, badge_y + 2), Color(0.85, 0.2, 0.2), 2.0)
+	
+	# 3개 분대원 체력 핍 (Squad Pips)
+	var pips = 3
+	var hp_step = max_hp / float(pips)
+	for pi in range(pips):
+		var pip_x = -7.0 + pi * 7.0
+		var is_active = current_hp >= (pi + 0.3) * hp_step
+		var pip_col = Color(0.2, 0.85, 0.2) if is_active else Color(0.2, 0.2, 0.2, 0.6)
+		draw_rect(Rect2(pip_x, badge_y - 8, 5, 2.5), pip_col)
+		draw_rect(Rect2(pip_x, badge_y - 8, 5, 2.5), Color.BLACK, false, 1.0)

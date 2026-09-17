@@ -149,6 +149,11 @@ func _fire_twin_20mm_rounds(dir: Vector2) -> void:
 	# 좌/우 쌍발 탄환 동시 발사
 	main_scene.spawn_projectile(global_position + normal + dir * muzzle_dist, dir.rotated(randf_range(-0.04, 0.04)), 14.0, Color(1.0, 0.85, 0.2))
 	main_scene.spawn_projectile(global_position - normal + dir * muzzle_dist, dir.rotated(randf_range(-0.04, 0.04)), 14.0, Color(1.0, 0.85, 0.2))
+	
+	# 실시간 20mm 황동 탄피 양측 배출
+	if main_scene.has_method("eject_casing"):
+		main_scene.eject_casing(global_position, normal.normalized(), "20mm")
+		main_scene.eject_casing(global_position, -normal.normalized(), "20mm")
 
 func _draw() -> void:
 	# =========================================================================
@@ -201,3 +206,7 @@ func _draw() -> void:
 		draw_circle(barrel2_end, 4.5, Color(3.5, 2.0, 0.4))
 		draw_circle(barrel1_end, 2.0, Color(4.5, 4.0, 2.0))
 		draw_circle(barrel2_end, 2.0, Color(4.5, 4.0, 2.0))
+		
+	# 7. 🎖️ CoH 20mm 대공포탑 셰브론 뱃지
+	draw_line(Vector2(-3, -15), Vector2(0, -12), Color(0.3, 0.85, 0.9), 1.8)
+	draw_line(Vector2(3, -15), Vector2(0, -12), Color(0.3, 0.85, 0.9), 1.8)

@@ -53,8 +53,13 @@ func _explode() -> void:
 	AudioManager.play_sfx("explosion", 1.2)
 	
 	var main_scene = get_tree().current_scene
-	if main_scene and main_scene.has_method("add_crater_decal"):
-		main_scene.add_crater_decal(global_position, 26.0)
+	if main_scene:
+		if main_scene.has_method("add_crater_decal"):
+			main_scene.add_crater_decal(global_position, 28.0)
+		if main_scene.has_method("spawn_dirt_eruption"):
+			main_scene.spawn_dirt_eruption(global_position, 9, 150.0)
+		if main_scene.has_method("trigger_screen_shake"):
+			main_scene.trigger_screen_shake(global_position, 14.0)
 	
 	# 반경 내 모든 적 일괄 폭발 데미지
 	var enemies = get_tree().get_nodes_in_group("enemies")
