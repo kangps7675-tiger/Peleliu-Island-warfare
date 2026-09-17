@@ -38,14 +38,3 @@ func _on_body_entered(body: Node2D) -> void:
 func _collect() -> void:
 	EventBus.gem_collected.emit(xp_value)
 	queue_free()
-
-func _draw() -> void:
-	# 다이아몬드 보석 형상
-	var points = PackedVector2Array([
-		Vector2(0, -8),
-		Vector2(6, 0),
-		Vector2(0, 8),
-		Vector2(-6, 0)
-	])
-	draw_colored_polygon(points, base_color)
-	draw_polyline(points, Color.WHITE, 1.5)

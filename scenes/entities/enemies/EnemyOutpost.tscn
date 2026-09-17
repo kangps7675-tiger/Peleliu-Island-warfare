@@ -1,14 +1,19 @@
-[gd_scene load_steps=3 format=3]
+[gd_scene load_steps=5 format=3]
 
 [ext_resource type="Script" path="res://scenes/entities/enemies/EnemyOutpost.gd" id="1_outpost"]
+[ext_resource type="Texture2D" path="res://assets/sprites/japanese_bunker.png" id="2_bunker_tex"]
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_outpost"]
-size = Vector2(52, 40)
+size = Vector2(80, 80)
 
 [node name="EnemyOutpost" type="StaticBody2D"]
 collision_layer = 4
 collision_mask = 3
 script = ExtResource("1_outpost")
+
+[node name="Sprite2D" type="Sprite2D" parent="."]
+texture = ExtResource("2_bunker_tex")
+scale = Vector2(0.4, 0.4)
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="."]
 shape = SubResource("RectangleShape2D_outpost")

@@ -24,9 +24,21 @@ func _ready() -> void:
 	aa_gun_cooldown = randf_range(0.05, 0.3)
 	heavy_cooldown = randf_range(0.5, 2.0)
 
+var tread_timer: float = 0.0
+
 func _process(delta: float) -> void:
+	var prev_pos = global_position
 	global_position = global_position.lerp(target_position, 20.0 * delta)
 	rotation = lerp_angle(rotation, target_rotation, 15.0 * delta)
+	
+	# 무한궤도 자국 스폰
+	if prev_pos.distance_squared_to(global_position) > 4.0:
+		tread_timer -= delta
+		if tread_timer <= 0.0:
+			tread_timer = 0.16
+			var main_scene = get_tree().current_scene
+			if main_scene and main_scene.has_method("add_tread_mark"):
+				main_scene.add_tread_mark(global_position, rotation, 18.0)
 	
 	# 1. 30mm 대공기관포 사격 루프
 	aa_gun_cooldown -= delta
@@ -49,7 +61,6 @@ func set_target_state(pos: Vector2, rot: float) -> void:
 
 func set_tail_tip(tip: bool) -> void:
 	is_tail_tip = tip
-	queue_redraw()
 
 func _fire_30mm_aa_gun() -> void:
 	var main_scene = get_tree().current_scene
@@ -61,7 +72,7 @@ func _fire_30mm_aa_gun() -> void:
 	var target_enemy: Node2D = null
 	
 	if not kamikazes.is_empty():
-		var min_d = 650.0 # 대공포 긴 사거리
+		var min_d = 650.0
 		for k in kamikazes:
 			if is_instance_valid(k):
 				var d = global_position.distance_to(k.global_position)
@@ -69,7 +80,6 @@ func _fire_30mm_aa_gun() -> void:
 					min_d = d
 					target_enemy = k
 	
-	# 가미카제가 없으면 일반 지상 적 사격
 	if not target_enemy:
 		var enemies = get_tree().get_nodes_in_group("enemies")
 		var min_d = 340.0
@@ -82,7 +92,6 @@ func _fire_30mm_aa_gun() -> void:
 					
 	if target_enemy:
 		var dir = (target_enemy.global_position - global_position).normalized()
-		# 30mm 고속 예광탄 사격
 		main_scene.spawn_projectile(global_position, dir, 28.0, Color(1.0, 0.8, 0.2))
 
 func _fire_heavy_cannon() -> void:
@@ -105,24 +114,4 @@ func _fire_heavy_cannon() -> void:
 		main_scene.spawn_cannon_shell(global_position, dir)
 
 func _draw() -> void:
-	if is_tail_tip:
-		# 붉은 꼬리 끝 (우로보로스 타겟)
-		draw_circle(Vector2.ZERO, segment_radius + 4.0, Color(1.0, 0.8, 0.2, 0.4))
-		draw_circle(Vector2.ZERO, segment_radius, Color(0.95, 0.25, 0.15))
-		draw_arc(Vector2.ZERO, segment_radius, 0, TAU, 24, Color(0.3, 0.05, 0.0), 2.5)
-	elif is_heavy_artillery:
-		# 150mm/300mm 대형 중포 마디 (짙은 해군 회색 장갑)
-		draw_circle(Vector2.ZERO, segment_radius + 3.0, Color(0.2, 0.23, 0.28))
-		draw_arc(Vector2.ZERO, segment_radius + 3.0, 0, TAU, 24, Color(0.08, 0.1, 0.12), 2.5)
-		# 쌍발 포신
-		draw_rect(Rect2(-4, -segment_radius - 8, 3, 10), Color(0.35, 0.38, 0.42))
-		draw_rect(Rect2(1, -segment_radius - 8, 3, 10), Color(0.35, 0.38, 0.42))
-		draw_circle(Vector2.ZERO, segment_radius * 0.45, Color(1.0, 0.6, 0.1))
-	else:
-		# 30mm 쌍발 대공포 탑재 기본 마디
-		draw_circle(Vector2.ZERO, segment_radius, Color(0.28, 0.32, 0.36))
-		draw_arc(Vector2.ZERO, segment_radius, 0, TAU, 24, Color(0.12, 0.14, 0.16), 2.0)
-		# 마디 위 쌍발 대공포 총열
-		draw_line(Vector2(-3, -segment_radius - 4), Vector2(-3, 0), Color(0.15, 0.17, 0.2), 2.0)
-		draw_line(Vector2(3, -segment_radius - 4), Vector2(3, 0), Color(0.15, 0.17, 0.2), 2.0)
-		draw_circle(Vector2.ZERO, segment_radius * 0.35, Color(0.5, 0.8, 0.6))
+	pass

@@ -1,0 +1,7 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scenes/weapons/FallingBomb.gd" id="1_bomb"]
+
+[node name="FallingBomb" type="Node2D"]
+z_index = 60
+script = ExtResource("1_bomb")

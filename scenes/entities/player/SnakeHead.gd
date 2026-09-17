@@ -5,7 +5,6 @@ class_name SnakeHead
 @export var turn_speed: float = 7.0
 @export var head_radius: float = 20.0
 @export var segment_scene: PackedScene = preload("res://scenes/entities/player/SnakeSegment.tscn")
-@export var time_ghost_scene: PackedScene = preload("res://scenes/entities/player/TimeGhostSnake.tscn")
 @export var snakeling_scene: PackedScene = preload("res://scenes/entities/player/Snakeling.tscn")
 
 # 💣 800mm 구스타프 열차포 (Schwerer Gustav)
@@ -14,6 +13,10 @@ const GUSTAV_INTERVAL: float = 4.5 # 4.5초 주기 거대 철갑탄
 var gustav_recoil_offset: float = 0.0
 var gustav_flash_timer: float = 0.0
 var camera_shake_amount: float = 0.0
+
+# 🚜 전차 무한궤도 자국 & 디젤 배기 연무
+var tread_mark_timer: float = 0.0
+var exhaust_timer: float = 0.0
 
 # 🐍 새끼 뱀 (Snakelings) 주기적 사출
 var snakeling_spawn_timer: float = 3.0
@@ -29,10 +32,6 @@ var history: Array = []
 var max_history_duration: float = 12.0
 var history_timer: float = 0.0
 
-# 꼬리물기 쿨다운
-var bite_cooldown: float = 0.0
-const BITE_COOLDOWN_MAX: float = 5.0
-
 # 포위 섬멸 체크 쿨다운
 var encircle_check_timer: float = 0.0
 const ENCIRCLE_CHECK_INTERVAL: float = 0.15
@@ -45,14 +44,12 @@ var current_hp: float = 250.0
 var current_tier: int = 1
 
 @onready var camera: Camera2D = $Camera2D
-@onready var bite_detector: Area2D = $BiteDetector
 
 func _ready() -> void:
 	collision_layer = 1 # Player Head
 	collision_mask = 4  # Enemy layer
 	add_to_group("player_head")
 	
-	bite_detector.area_entered.connect(_on_bite_detector_area_entered)
 	EventBus.gem_collected.connect(_on_gem_collected)
 	
 	for i in range(initial_segments_count):
@@ -74,14 +71,12 @@ func _physics_process(delta: float) -> void:
 	_handle_snakelings(delta)
 	_record_history(delta)
 	_update_segments()
+	_handle_treads_and_exhaust(delta)
 	
 	encircle_check_timer -= delta
 	if encircle_check_timer <= 0.0:
 		encircle_check_timer = ENCIRCLE_CHECK_INTERVAL
 		_check_encircle_trap()
-	
-	if bite_cooldown > 0.0:
-		bite_cooldown -= delta
 	
 	if camera_shake_amount > 0.0:
 		camera_shake_amount = maxf(0.0, camera_shake_amount - delta * 20.0)
@@ -90,6 +85,23 @@ func _physics_process(delta: float) -> void:
 		camera.offset = Vector2.ZERO
 	
 	queue_redraw()
+
+func _handle_treads_and_exhaust(delta: float) -> void:
+	if velocity.length() > 20.0:
+		tread_mark_timer -= delta
+		if tread_mark_timer <= 0.0:
+			tread_mark_timer = 0.12
+			var main_scene = get_tree().current_scene
+			if main_scene and main_scene.has_method("add_tread_mark"):
+				main_scene.add_tread_mark(global_position, rotation, 22.0)
+	
+	exhaust_timer -= delta
+	if exhaust_timer <= 0.0:
+		exhaust_timer = 0.08
+		var main_scene = get_tree().current_scene
+		if main_scene and main_scene.has_method("add_exhaust_smoke"):
+			var exhaust_pos = global_position - Vector2.RIGHT.rotated(rotation) * 20.0
+			main_scene.add_exhaust_smoke(exhaust_pos, -velocity.normalized())
 
 func _handle_movement(delta: float) -> void:
 	var input_vector = Vector2.ZERO
@@ -230,34 +242,6 @@ func _trigger_encircle_annihilation(loop_end_idx: int) -> void:
 			if is_instance_valid(e) and e.has_method("take_damage"):
 				e.take_damage(999.0)
 
-func _on_bite_detector_area_entered(area: Area2D) -> void:
-	if bite_cooldown > 0.0:
-		return
-	if area.is_in_group("snake_segments"):
-		var seg_idx = area.get("segment_index")
-		var is_tip = area.get("is_tail_tip")
-		if is_tip or (seg_idx != null and seg_idx >= segments.size() - 3):
-			if segments.size() >= GameManager.MIN_SEGMENTS_FOR_BITE:
-				_trigger_bite_the_tail()
-
-func _trigger_bite_the_tail() -> void:
-	bite_cooldown = BITE_COOLDOWN_MAX
-	var ghost_trajectory: Array = []
-	for entry in history:
-		ghost_trajectory.append(entry.duplicate())
-	
-	EventBus.tail_bitten.emit(ghost_trajectory)
-	
-	if time_ghost_scene:
-		var ghost = time_ghost_scene.instantiate()
-		get_parent().add_child(ghost)
-		ghost.initialize(ghost_trajectory, segments.size())
-	
-	if history.size() > 0:
-		var oldest_entry = history.back()
-		global_position = oldest_entry["pos"]
-		rotation = oldest_entry["rot"]
-
 func _on_gem_collected(_amount: int) -> void:
 	if GameManager.total_supplies % 2 == 0:
 		add_segment()
@@ -271,48 +255,12 @@ func take_damage(amount: float) -> void:
 		EventBus.game_over.emit()
 
 func _draw() -> void:
-	# 1. 강철 전함 장갑 머리 (다크 슬레이트 그레이 + 리벳 장갑)
-	var points = PackedVector2Array([
-		Vector2(head_radius * 1.4, 0),
-		Vector2(-head_radius * 0.9, -head_radius * 0.95),
-		Vector2(-head_radius * 0.6, 0),
-		Vector2(-head_radius * 0.9, head_radius * 0.95)
-	])
-	draw_colored_polygon(points, Color(0.24, 0.28, 0.32, 0.98))
-	draw_polyline(points, Color(0.1, 0.12, 0.15), 3.0)
-	
-	# 리벳 장갑 점들
-	draw_circle(Vector2(head_radius * 0.8, -4), 2.0, Color(0.4, 0.45, 0.5))
-	draw_circle(Vector2(head_radius * 0.8, 4), 2.0, Color(0.4, 0.45, 0.5))
-	
-	# 2. 800mm 구스타프 초대형 포신 (Schwerer Gustav)
-	var gun_base_x = -head_radius * 0.3 - gustav_recoil_offset
-	var barrel_length = 34.0
-	var barrel_width = 11.0
-	
-	# 거대 회전 포탑
-	draw_circle(Vector2(gun_base_x, 0), 12.0, Color(0.18, 0.2, 0.22))
-	draw_arc(Vector2(gun_base_x, 0), 12.0, 0, TAU, 20, Color(0.08, 0.09, 0.1), 2.0)
-	
-	# 800mm 초중구경 포신
-	var barrel_rect = Rect2(gun_base_x, -barrel_width * 0.5, barrel_length, barrel_width)
-	draw_rect(barrel_rect, Color(0.35, 0.38, 0.42))
-	draw_rect(barrel_rect, Color(0.12, 0.14, 0.16), false, 2.0)
-	
-	# 2중 머즐 브레이크
-	var muzzle_rect = Rect2(gun_base_x + barrel_length - 5.0, -barrel_width * 0.75, 6.0, barrel_width * 1.5)
-	draw_rect(muzzle_rect, Color(0.2, 0.22, 0.25))
-	
-	# 발사 순간 거대한 핵폭발급 화염 (Muzzle Flash)
+	# 800mm 구스타프 발사 순간 거대한 포구 화염 (Muzzle Flash)
 	if gustav_flash_timer > 0.0:
-		var flash_pos = Vector2(gun_base_x + barrel_length + 8.0, 0)
-		draw_circle(flash_pos, 22.0, Color(1.0, 0.4, 0.05, 0.9))
-		draw_circle(flash_pos, 12.0, Color(1.0, 0.95, 0.2, 1.0))
-		draw_line(flash_pos, flash_pos + Vector2(28.0, -12.0), Color(1.0, 0.7, 0.1), 4.0)
-		draw_line(flash_pos, flash_pos + Vector2(32.0, 0.0), Color(1.0, 1.0, 0.9), 5.0)
-		draw_line(flash_pos, flash_pos + Vector2(28.0, 12.0), Color(1.0, 0.7, 0.1), 4.0)
-	
-	# 3. BITE READY 글로우
-	if GameManager.is_bite_ready() and bite_cooldown <= 0.0:
-		var pulse = (sin(Time.get_ticks_msec() * 0.01) + 1.0) * 0.5
-		draw_arc(Vector2.ZERO, head_radius + 8.0 + pulse * 4.0, 0, TAU, 32, Color(1.0, 0.8, 0.1, 0.6 + pulse * 0.4), 3.0)
+		var flash_pos = Vector2(head_radius + 20.0, 0)
+		# HDR 블룸 발광
+		draw_circle(flash_pos, 32.0, Color(2.5, 0.8, 0.2, 0.9))
+		draw_circle(flash_pos, 18.0, Color(3.0, 2.5, 1.2, 1.0))
+		draw_line(flash_pos, flash_pos + Vector2(45.0, -18.0), Color(2.0, 1.2, 0.3), 5.0)
+		draw_line(flash_pos, flash_pos + Vector2(55.0, 0.0), Color(3.0, 3.0, 2.5), 6.0)
+		draw_line(flash_pos, flash_pos + Vector2(45.0, 18.0), Color(2.0, 1.2, 0.3), 5.0)

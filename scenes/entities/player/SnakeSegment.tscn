@@ -1,14 +1,19 @@
-[gd_scene load_steps=3 format=3]
+[gd_scene load_steps=5 format=3]
 
 [ext_resource type="Script" path="res://scenes/entities/player/SnakeSegment.gd" id="1_segment"]
+[ext_resource type="Texture2D" path="res://assets/sprites/snake_segment.png" id="2_seg_tex"]
 
 [sub_resource type="CircleShape2D" id="CircleShape2D_segment"]
-radius = 14.0
+radius = 20.0
 
 [node name="SnakeSegment" type="Area2D"]
 collision_layer = 2
 collision_mask = 5
 script = ExtResource("1_segment")
+
+[node name="Sprite2D" type="Sprite2D" parent="."]
+texture = ExtResource("2_seg_tex")
+scale = Vector2(0.3, 0.3)
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="."]
 shape = SubResource("CircleShape2D_segment")

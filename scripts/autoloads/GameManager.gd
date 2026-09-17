@@ -2,8 +2,8 @@ extends Node
 
 ## 전역 게임 매니저: 펠렐리우 1944 (Project Iron Serpent)
 
-# 15분 고정 카운트다운 (900초)
-var countdown_time: float = 15.0 * 60.0
+# 10분 결전 카운트다운 (600초)
+var countdown_time: float = 10.0 * 60.0
 var session_time: float = 0.0
 var kill_count: int = 0
 var total_supplies: int = 0 # 군수 보급품 (골드/젬 대체)
@@ -15,10 +15,7 @@ var current_scale_tier: int = 1
 var snake_scale_multiplier: float = 1.0
 
 # 엔딩 피날레 트리거 플래그
-var is_airstrike_triggered: bool = false
-
-# 꼬리물기(우로보로스) 최소 마디
-const MIN_SEGMENTS_FOR_BITE: int = 15
+var is_nuclear_triggered: bool = false
 
 func _ready() -> void:
 	EventBus.gem_collected.connect(_on_supply_collected)
@@ -32,16 +29,15 @@ func _process(delta: float) -> void:
 	session_time += delta
 	countdown_time = maxf(0.0, countdown_time - delta)
 	
-	# 15분 경과 ➔ 00:00 도달 시 미군 200대 대편대 융단폭격 발동!
-	if countdown_time <= 0.0 and not is_airstrike_triggered:
-		is_airstrike_triggered = true
-		_trigger_allied_carpet_bombing()
+	# 10분 경과 ➔ 00:00 도달 시 핵폭탄(Nuclear Strike) 투하 및 최후 승리!
+	if countdown_time <= 0.0 and not is_nuclear_triggered:
+		is_nuclear_triggered = true
+		_trigger_nuclear_strike()
 
-func _trigger_allied_carpet_bombing() -> void:
-	is_game_active = false
+func _trigger_nuclear_strike() -> void:
 	var main_scene = get_tree().current_scene
-	if main_scene and main_scene.has_method("trigger_grand_carpet_bombing"):
-		main_scene.trigger_grand_carpet_bombing()
+	if main_scene and main_scene.has_method("trigger_nuclear_strike"):
+		main_scene.trigger_nuclear_strike()
 
 func _on_supply_collected(amount: int) -> void:
 	total_supplies += amount
@@ -75,11 +71,8 @@ func _on_enemy_killed(_pos: Vector2, _type: String) -> void:
 func _on_segment_added(length: int) -> void:
 	current_snake_length = length
 
-func is_bite_ready() -> bool:
-	return current_snake_length >= MIN_SEGMENTS_FOR_BITE
-
 func reset_game() -> void:
-	countdown_time = 15.0 * 60.0
+	countdown_time = 10.0 * 60.0
 	session_time = 0.0
 	kill_count = 0
 	total_supplies = 0
@@ -87,4 +80,4 @@ func reset_game() -> void:
 	current_scale_tier = 1
 	snake_scale_multiplier = 1.0
 	is_game_active = true
-	is_airstrike_triggered = false
+	is_nuclear_triggered = false

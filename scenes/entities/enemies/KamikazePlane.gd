@@ -44,6 +44,15 @@ func _physics_process(delta: float) -> void:
 				collider.take_damage(kamikaze_damage)
 			_self_destruct()
 	
+	# 짙은 검은색 엔진 화염 연기 배출
+	engine_trail_timer -= delta
+	if engine_trail_timer <= 0.0:
+		engine_trail_timer = 0.05
+		var main_scene = get_tree().current_scene
+		if main_scene and main_scene.has_method("add_exhaust_smoke"):
+			var tail_pos = global_position - dir * 35.0
+			main_scene.add_exhaust_smoke(tail_pos, -dir * 120.0)
+	
 	if flash_timer > 0.0:
 		flash_timer -= delta
 	
@@ -58,15 +67,22 @@ func take_damage(amount: float) -> void:
 		_die_airborne()
 
 func _self_destruct() -> void:
-	# 자폭 폭발 연출
+	# 지면/플레이어 자폭 격발
 	var main_scene = get_tree().current_scene
-	if main_scene and main_scene.has_method("spawn_cannon_shell"):
-		main_scene.spawn_cannon_shell(global_position, Vector2.ZERO)
+	if main_scene:
+		if main_scene.has_method("spawn_heavy_explosion"):
+			main_scene.spawn_heavy_explosion(global_position, 140.0)
+		if main_scene.has_method("add_crater_decal"):
+			main_scene.add_crater_decal(global_position, 35.0)
 	queue_free()
 
 func _die_airborne() -> void:
-	# 공중 격추 성공 시 고가치 보급품 3개 드롭
+	# 공중 요격 폭파
 	EventBus.enemy_killed.emit(global_position, "KAMIKAZE")
+	var main_scene = get_tree().current_scene
+	if main_scene and main_scene.has_method("spawn_heavy_explosion"):
+		main_scene.spawn_heavy_explosion(global_position, 120.0)
+		
 	if gem_scene:
 		for i in range(3):
 			var g = gem_scene.instantiate()
@@ -75,30 +91,6 @@ func _die_airborne() -> void:
 	queue_free()
 
 func _draw() -> void:
-	var col = Color.WHITE if flash_timer > 0.0 else Color(0.18, 0.4, 0.22) # 짙은 국방색 제로센
-	
-	# 비행기 동체
-	var body_pts = PackedVector2Array([
-		Vector2(18, 0),
-		Vector2(-14, -4),
-		Vector2(-18, 0),
-		Vector2(-14, 4)
-	])
-	draw_colored_polygon(body_pts, col)
-	
-	# 주익 (날개)
-	draw_line(Vector2(2, -22), Vector2(2, 22), col, 5.0)
-	# 붉은 일장기 마킹 (Hinomaru)
-	draw_circle(Vector2(2, -14), 3.5, Color(0.9, 0.1, 0.1))
-	draw_circle(Vector2(2, 14), 3.5, Color(0.9, 0.1, 0.1))
-	
-	# 꼬리 날개
-	draw_line(Vector2(-14, -8), Vector2(-14, 8), col, 3.0)
-	
-	# 프로펠러 회전 잔상
-	var prop_rot = Time.get_ticks_msec() * 0.05
-	draw_line(Vector2(19, -8).rotated(prop_rot), Vector2(19, 8).rotated(prop_rot), Color(0.9, 0.9, 0.9, 0.6), 2.0)
-	
 	# 급강하 스피드 라인 (제리코 사이렌 시각화)
-	draw_line(Vector2(-24, -12), Vector2(-40, -12), Color(1.0, 0.4, 0.1, 0.5), 1.5)
-	draw_line(Vector2(-24, 12), Vector2(-40, 12), Color(1.0, 0.4, 0.1, 0.5), 1.5)
+	draw_line(Vector2(-30, -18), Vector2(-60, -18), Color(1.0, 0.5, 0.1, 0.6), 2.0)
+	draw_line(Vector2(-30, 18), Vector2(-60, 18), Color(1.0, 0.5, 0.1, 0.6), 2.0)
