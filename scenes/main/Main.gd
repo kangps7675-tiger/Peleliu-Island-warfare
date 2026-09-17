@@ -183,7 +183,7 @@ func _setup_environment_features() -> void:
 		island_center + Vector2(0, 520)
 	]
 	
-	# 7. 🌴 260그루 3D RTS 열대 수목 (수많은 야자수와 정글 수목)
+	# 7. 🌴 270그루 3D RTS 수직 입체 열대 수목 (수직 높이감 & Y-소팅)
 	var rng = RandomNumberGenerator.new()
 	rng.seed = 19440915 # 고정 시드로 매 판 균일하고 아름다운 전장 지형 형성
 	
@@ -198,16 +198,25 @@ func _setup_environment_features() -> void:
 			continue
 			
 		var tree_type = rng.randi_range(0, 2) # 0: 야자수, 1: 빽빽한 정글목, 2: 거목
-		var r = rng.randf_range(16.0, 32.0)
-		var col = Color(rng.randf_range(0.12, 0.22), rng.randf_range(0.26, 0.42), rng.randf_range(0.12, 0.2))
+		var r = rng.randf_range(20.0, 36.0)
+		var col = Color(rng.randf_range(0.12, 0.22), rng.randf_range(0.28, 0.45), rng.randf_range(0.12, 0.2))
+		
+		# 수직 3D 높이 (야자수는 키가 크고, 거목은 웅장함)
+		var t_height = rng.randf_range(52.0, 82.0) if tree_type == 0 else (rng.randf_range(60.0, 90.0) if tree_type == 2 else rng.randf_range(40.0, 62.0))
+		var trunk_curve = rng.randf_range(-8.0, 8.0)
 		
 		jungle_trees.append({
 			"pos": t_pos,
 			"r": r,
 			"type": tree_type,
 			"col": col,
-			"shadow_offset": Vector2(18.0, 24.0) # 3D RTS 깊이감 그림자
+			"height": t_height,
+			"trunk_curve": trunk_curve,
+			"shadow_offset": Vector2(t_height * 0.65, t_height * 0.85) # 태양광 방향 장대 그림자
 		})
+		
+	# 3D RTS 아이소메트릭 Y-소팅: 위쪽(북쪽) 나무부터 아래쪽(남쪽) 나무 순서대로 렌더링하여 자연스러운 입체 차폐 구현
+	jungle_trees.sort_custom(func(a, b): return a["pos"].y < b["pos"].y)
 
 func _process(delta: float) -> void:
 	# 1. 10분 핵폭탄 시퀀스 진행 중일 때
@@ -482,40 +491,64 @@ func _on_loop_completed(polygon: PackedVector2Array, _enemies: Array) -> void:
 
 func _draw() -> void:
 	# =========================================================================
-	# 1. 🌊 태평양 심해 바다 (짙은 남색 + 파도 너울)
+	# 1. 🌊 태평양 3D 심해 바다 & 산호초 수심 그라디언트
 	# =========================================================================
-	draw_rect(Rect2(-1500, -1500, 6600, 5800), Color(0.04, 0.09, 0.18))
+	# 심해 해구 (Deep Abyssal Trench)
+	draw_rect(Rect2(-1500, -1500, 6600, 5800), Color(0.02, 0.05, 0.12))
 	
-	# 미세 파도 너울 선
+	# 심해 거대 파도 너울
 	var wave_time = Time.get_ticks_msec() * 0.001
-	for wy in range(-1200, 4200, 280):
-		var offset_x = sin(wave_time + wy * 0.01) * 35.0
-		draw_line(Vector2(-1200 + offset_x, wy), Vector2(4800 + offset_x, wy), Color(0.08, 0.16, 0.28, 0.35), 4.0)
+	for wy in range(-1200, 4200, 240):
+		var offset_x = sin(wave_time * 1.1 + wy * 0.01) * 45.0
+		draw_line(Vector2(-1200 + offset_x, wy), Vector2(4800 + offset_x, wy), Color(0.05, 0.11, 0.22, 0.45), 6.0)
 	
 	# =========================================================================
-	# 2. 🪸 에메랄드 산호초 여울 (Reef Shelf - 뱀이 자유롭게 기동하는 바다)
+	# 2. 🪸 에메랄드 산호초 장벽 (Barrier Reef Shelf - 3D 빛 굴절 & 암초 실루엣)
 	# =========================================================================
 	var reef_pts = _get_ellipse_points(island_center, ocean_limit_x, ocean_limit_y, 64)
-	draw_colored_polygon(reef_pts, Color(0.08, 0.28, 0.38, 0.82))
-	# 암초 브레이크워터 백색 포말선
-	draw_polyline(reef_pts, Color(0.4, 0.75, 0.85, 0.45), 18.0)
-	draw_polyline(reef_pts, Color(0.85, 0.95, 1.0, 0.6), 4.0)
+	draw_colored_polygon(reef_pts, Color(0.06, 0.32, 0.40, 0.88)) # 에메랄드 청록빛 여울
+	
+	# 수중 암초/산호 군락 실루엣 (Underwater Reef Silhouettes)
+	for ri in range(28):
+		var r_angle = ri * (TAU / 28.0)
+		var r_pos = island_center + Vector2(cos(r_angle) * (ocean_limit_x - 140.0), sin(r_angle) * (ocean_limit_y - 140.0))
+		draw_circle(r_pos, 52.0, Color(0.03, 0.20, 0.26, 0.6))
+	
+	# 해안선 쇄파 백색 포말선 (Rolling Surf Foam Waves)
+	var surf_pulse = sin(wave_time * 2.4) * 14.0
+	var surf_pts1 = _get_ellipse_points(island_center, ocean_limit_x - 55.0 + surf_pulse, ocean_limit_y - 55.0 + surf_pulse, 64)
+	draw_polyline(surf_pts1, Color(0.70, 0.92, 1.0, 0.55), 14.0)
+	draw_polyline(surf_pts1, Color(1.0, 1.0, 1.0, 0.75), 4.0)
 	
 	# =========================================================================
-	# 3. 🏖️ 펠렐리우 섬 해안 백사장 (Wet Sand & Dry Sand)
+	# 3. 🏖️ 펠렐리우 섬 해안 백사장 (3D Terraced Sand & Shallows)
 	# =========================================================================
-	var wet_sand_pts = _get_ellipse_points(island_center, island_radius_x + 90.0, island_radius_y + 90.0, 64)
-	draw_colored_polygon(wet_sand_pts, Color(0.68, 0.62, 0.48)) # 젖은 모래
-	var dry_sand_pts = _get_ellipse_points(island_center, island_radius_x + 40.0, island_radius_y + 40.0, 64)
-	draw_colored_polygon(dry_sand_pts, Color(0.84, 0.78, 0.58)) # 마른 백사장
+	# 얕은 여울 청록빛 바다 (Nearshore Turquoise Shallows)
+	var shallow_pts = _get_ellipse_points(island_center, island_radius_x + 130.0, island_radius_y + 130.0, 64)
+	draw_colored_polygon(shallow_pts, Color(0.12, 0.52, 0.58, 0.75))
 	
-	# 해안 대전차 장애물 (Czech Hedgehogs) & 철조망
+	# 젖은 모래 백사장 (Wet Sand Tide Wash)
+	var wet_sand_pts = _get_ellipse_points(island_center, island_radius_x + 85.0, island_radius_y + 85.0, 64)
+	draw_colored_polygon(wet_sand_pts, Color(0.58, 0.50, 0.36))
+	
+	# 마른 열대 백사장 (Dry Golden Coral Sand)
+	var dry_sand_pts = _get_ellipse_points(island_center, island_radius_x + 35.0, island_radius_y + 35.0, 64)
+	draw_colored_polygon(dry_sand_pts, Color(0.86, 0.80, 0.60))
+	
+	# 해안선 파도 거품 라인
+	var beach_foam = _get_ellipse_points(island_center, island_radius_x + 95.0 + sin(wave_time * 2.0) * 8.0, island_radius_y + 95.0 + sin(wave_time * 2.0) * 8.0, 64)
+	draw_polyline(beach_foam, Color(1.0, 1.0, 1.0, 0.65), 5.0)
+	
+	# 해안 대전차 장애물 (3D Czech Hedgehogs with Cast Shadows)
 	for angle_idx in range(24):
 		var a = angle_idx * (TAU / 24.0)
 		var h_pos = island_center + Vector2(cos(a) * (island_radius_x + 35.0), sin(a) * (island_radius_y + 35.0))
-		# 대전차 철 십자가 (X자 강철빔)
-		draw_line(h_pos - Vector2(10, 10), h_pos + Vector2(10, 10), Color(0.2, 0.22, 0.25), 4.0)
-		draw_line(h_pos - Vector2(-10, 10), h_pos + Vector2(-10, 10), Color(0.2, 0.22, 0.25), 4.0)
+		# 지면 그림자
+		draw_line(h_pos + Vector2(5, 7) - Vector2(10, 8), h_pos + Vector2(5, 7) + Vector2(10, 8), Color(0.04, 0.06, 0.04, 0.4), 4.0)
+		# 대전차 철 십자가 3D 입체빔
+		draw_line(h_pos - Vector2(10, 10), h_pos + Vector2(10, 10), Color(0.18, 0.20, 0.22), 4.5)
+		draw_line(h_pos - Vector2(-10, 10), h_pos + Vector2(-10, 10), Color(0.24, 0.26, 0.28), 4.5)
+		draw_line(h_pos, h_pos - Vector2(0, 14), Color(0.35, 0.38, 0.40), 3.5) # 수직 빔
 	
 	# =========================================================================
 	# 4. 🌴 울창한 열대 정글 숲 기저 지형 (Tropical Jungle Base)
@@ -546,18 +579,9 @@ func _draw() -> void:
 	_draw_elevation_hills()
 	
 	# =========================================================================
-	# 4-E. ⛰️ 북부 움루브로골 산악 지대 (Bloody Nose Ridge & Limestone Caves)
+	# 4-E. ⛰️ 북부 움루브로골 산악 지대 (3D Bloody Nose Ridge Mountain & Caves)
 	# =========================================================================
-	var ridge_pts = PackedVector2Array([
-		island_center + Vector2(-520, -780),
-		island_center + Vector2(-220, -1080),
-		island_center + Vector2(280, -1040),
-		island_center + Vector2(520, -780),
-		island_center + Vector2(180, -660),
-		island_center + Vector2(-260, -680)
-	])
-	draw_colored_polygon(ridge_pts, Color(0.32, 0.28, 0.24))
-	draw_polyline(ridge_pts, Color(0.16, 0.14, 0.12), 6.0)
+	_draw_bloody_nose_ridge()
 	_draw_limestone_caves()
 	
 	# =========================================================================
@@ -730,127 +754,261 @@ func _draw_dirt_roads() -> void:
 	for road in dirt_roads:
 		if road.size() < 2:
 			continue
-		# 흙길 바닥 (갈색 토양 베이스)
-		draw_polyline(road, Color(0.42, 0.33, 0.22), 34.0)
-		draw_polyline(road, Color(0.48, 0.38, 0.26), 26.0)
+		# 3D 굴착 흙길: 가장자리 둑 그림자
+		draw_polyline(road, Color(0.18, 0.14, 0.10, 0.5), 42.0)
+		# 갈색 토양 베이스
+		draw_polyline(road, Color(0.44, 0.34, 0.22), 36.0)
+		# 내부 마모된 흙길
+		draw_polyline(road, Color(0.50, 0.40, 0.27), 26.0)
 		# 차량 바퀴 궤적 (좌우 2줄 흙길 바퀴 자국)
 		for i in range(road.size() - 1):
 			var p1 = road[i]
 			var p2 = road[i + 1]
 			var dir = (p2 - p1).normalized()
 			var normal = Vector2(-dir.y, dir.x) * 6.5
-			draw_line(p1 + normal, p2 + normal, Color(0.30, 0.22, 0.14, 0.6), 3.0)
-			draw_line(p1 - normal, p2 - normal, Color(0.30, 0.22, 0.14, 0.6), 3.0)
+			draw_line(p1 + normal, p2 + normal, Color(0.26, 0.18, 0.11, 0.7), 3.2)
+			draw_line(p1 - normal, p2 - normal, Color(0.26, 0.18, 0.11, 0.7), 3.2)
 
 func _draw_flowing_river(wave_time: float) -> void:
 	if river_points.size() < 2:
 		return
-	# 1. 진흙 둑 (River banks)
-	draw_polyline(river_points, Color(0.34, 0.26, 0.16), 56.0)
+	# 1. 3D 강바닥 굴착 절벽 둑 (Deep river mud embankment walls)
+	draw_polyline(river_points, Color(0.16, 0.12, 0.08), 64.0)
+	draw_polyline(river_points, Color(0.32, 0.24, 0.16), 56.0)
 	# 2. 강 수면 기저부 (청록빛 물)
-	draw_polyline(river_points, Color(0.09, 0.28, 0.34), 42.0)
+	draw_polyline(river_points, Color(0.08, 0.26, 0.32), 44.0)
 	# 3. 얕은 여울 반사광
-	draw_polyline(river_points, Color(0.16, 0.44, 0.50, 0.75), 28.0)
-	# 4. 흐르는 물결 애니메이션 (웨이브 잔물결)
+	draw_polyline(river_points, Color(0.14, 0.46, 0.52, 0.8), 28.0)
+	# 4. 실시간으로 굽이쳐 흐르는 물결 애니메이션 (Wave Rapids)
 	for i in range(river_points.size() - 1):
 		var p1 = river_points[i]
 		var p2 = river_points[i + 1]
-		var flow_offset = sin(wave_time * 3.0 + i * 1.5) * 7.0
-		var flow_p1 = p1.lerp(p2, 0.25) + Vector2(flow_offset, flow_offset * 0.5)
-		var flow_p2 = p1.lerp(p2, 0.75) + Vector2(flow_offset, flow_offset * 0.5)
-		draw_line(flow_p1, flow_p2, Color(0.65, 0.90, 0.96, 0.45), 3.0)
+		var flow_offset = sin(wave_time * 3.5 + i * 1.6) * 8.0
+		var flow_p1 = p1.lerp(p2, 0.2) + Vector2(flow_offset, flow_offset * 0.5)
+		var flow_p2 = p1.lerp(p2, 0.8) + Vector2(flow_offset, flow_offset * 0.5)
+		draw_line(flow_p1, flow_p2, Color(0.70, 0.95, 1.0, 0.6), 3.5)
+		# 물방울 포말
+		draw_circle(flow_p2, 3.0, Color(1.0, 1.0, 1.0, 0.7))
 
 func _draw_elevation_hills() -> void:
 	for hill in hills:
 		var pos: Vector2 = hill["pos"]
 		var r: float = hill["r"]
-		# 3D RTS 언덕 등고선 (기저부 음영 -> 중간 능선 -> 정상 평지)
-		draw_circle(pos + Vector2(18, 22), r, Color(0.07, 0.12, 0.07, 0.45)) # 능선 거대 그림자
-		draw_circle(pos, r, Color(0.18, 0.28, 0.16)) # 1단계 사면
-		draw_arc(pos, r, 0, TAU, 32, Color(0.12, 0.20, 0.10), 4.0)
-		draw_circle(pos + Vector2(-6, -8), r * 0.7, Color(0.22, 0.34, 0.19)) # 2단계 고지
-		draw_arc(pos + Vector2(-6, -8), r * 0.7, 0, TAU, 28, Color(0.15, 0.24, 0.12), 3.0)
-		draw_circle(pos + Vector2(-12, -14), r * 0.4, Color(0.28, 0.40, 0.24)) # 3단계 정상
-		draw_arc(pos + Vector2(-12, -14), r * 0.4, 0, TAU, 24, Color(0.38, 0.52, 0.32, 0.6), 2.5)
+		var h_height: float = 46.0 # 수직 단차 높이
+		
+		# 1. 지면 남동쪽 거대 입체 그림자
+		draw_circle(pos + Vector2(26, 36), r * 1.08, Color(0.04, 0.08, 0.04, 0.45))
+		
+		# 2. 기저부 사면
+		draw_circle(pos, r, Color(0.18, 0.26, 0.15))
+		
+		# 3. 남쪽 깎아지른 수직 단차 암벽 (South Cliff Escarpment)
+		var cliff_h = Rect2(pos.x - r * 0.85, pos.y - h_height, r * 1.7, h_height)
+		draw_rect(cliff_h, Color(0.28, 0.24, 0.18))
+		# 암벽 단층 라인
+		draw_line(Vector2(pos.x - r * 0.85, pos.y - h_height * 0.5), Vector2(pos.x + r * 0.85, pos.y - h_height * 0.5), Color(0.36, 0.30, 0.22), 3.0)
+		draw_line(Vector2(pos.x - r * 0.8, pos.y), Vector2(pos.x + r * 0.8, pos.y), Color(0.14, 0.12, 0.08), 4.0)
+		
+		# 4. 공중에 솟아오른 고지 정상 평지 (Elevated Summit Mesa)
+		var top_pos = pos + Vector2(0, -h_height)
+		draw_circle(top_pos, r * 0.85, Color(0.25, 0.38, 0.20))
+		# 정상부 2단계 능선
+		draw_circle(top_pos + Vector2(-r * 0.1, -r * 0.1), r * 0.5, Color(0.30, 0.44, 0.24))
+		# 북서쪽 햇빛 강렬한 능선 하이라이트 림
+		draw_arc(top_pos, r * 0.85, PI * 0.8, PI * 1.8, 24, Color(0.58, 0.72, 0.45, 0.9), 4.0)
+		draw_arc(top_pos + Vector2(-r * 0.1, -r * 0.1), r * 0.5, PI * 0.8, PI * 1.8, 20, Color(0.70, 0.85, 0.55, 0.8), 3.0)
+
+func _draw_bloody_nose_ridge() -> void:
+	# =========================================================================
+	# ⛰️ 북부 움루브로골 산악 암벽 (3D Bloody Nose Ridge Limestone Mountain)
+	# =========================================================================
+	var ridge_base = PackedVector2Array([
+		island_center + Vector2(-540, -740),
+		island_center + Vector2(-240, -1040),
+		island_center + Vector2(260, -1000),
+		island_center + Vector2(540, -740),
+		island_center + Vector2(200, -620),
+		island_center + Vector2(-280, -640)
+	])
+	
+	var summit_offset = Vector2(0, -90.0) # 수직 90px 고지대 솟구침
+	var ridge_summit = PackedVector2Array()
+	for pt in ridge_base:
+		ridge_summit.append(pt + summit_offset)
+		
+	# 1. 산악 남동쪽 지면 거대 투영 그림자
+	var mountain_shadow = PackedVector2Array()
+	for pt in ridge_base:
+		mountain_shadow.append(pt + Vector2(45, 60))
+	draw_colored_polygon(mountain_shadow, Color(0.04, 0.08, 0.04, 0.55))
+	
+	# 2. 깎아지른 수직 석회암 절벽면 (Vertical Limestone Cliff Face)
+	var cliff_pts = PackedVector2Array([
+		ridge_base[4], # 남동쪽 기저부
+		ridge_base[5], # 남서쪽 기저부
+		ridge_base[0], # 서쪽 기저부
+		ridge_summit[0], # 서쪽 능선 정상
+		ridge_summit[5], # 남서쪽 능선 정상
+		ridge_summit[4], # 남동쪽 능선 정상
+		ridge_summit[3], # 동쪽 능선 정상
+		ridge_base[3]  # 동쪽 기저부
+	])
+	draw_colored_polygon(cliff_pts, Color(0.25, 0.22, 0.18)) # 짙은 석회암 절벽 음영
+	
+	# 수직 암석 층리(Strata) 및 암벽 절벽 단면 디테일
+	for s_step in range(1, 5):
+		var factor = float(s_step) / 5.0
+		var layer_pts = PackedVector2Array()
+		for pt in [ridge_base[0], ridge_base[5], ridge_base[4], ridge_base[3]]:
+			layer_pts.append(pt + summit_offset * factor)
+		draw_polyline(layer_pts, Color(0.38, 0.34, 0.28, 0.8), 3.0)
+		
+	# 수직 크랙 및 흘러내린 바위 균열선 (Rock fissures)
+	for i in range(-4, 5):
+		var cx = island_center.x + float(i) * 110.0
+		var c_bot = Vector2(cx, island_center.y - 650.0)
+		var c_top = c_bot + summit_offset
+		draw_line(c_bot, c_top, Color(0.12, 0.10, 0.08, 0.75), 2.5)
+		# 덩굴 및 이끼
+		draw_line(c_top, c_top + Vector2(0, 35.0), Color(0.18, 0.28, 0.12, 0.7), 3.0)
+	
+	# 3. 3D 산악 정상 능선 고원 평지 (Summit Plateau)
+	draw_colored_polygon(ridge_summit, Color(0.35, 0.42, 0.26)) # 고원 정글 수풀
+	# 북서쪽 햇빛 강렬한 능선 암석 림 하이라이트
+	draw_polyline(ridge_summit, Color(0.65, 0.72, 0.55), 4.0)
 
 func _draw_limestone_caves() -> void:
 	for c_pos in caves:
-		# 절벽면 동굴 입구
-		draw_circle(c_pos + Vector2(6, 6), 28.0, Color(0.04, 0.04, 0.04, 0.7)) # 외곽 암석 음영
-		draw_circle(c_pos, 22.0, Color(0.42, 0.38, 0.34)) # 석회암 바위 테두리
-		draw_rect(Rect2(c_pos.x - 14, c_pos.y - 12, 28, 24), Color(0.03, 0.03, 0.03)) # 칠흑 같은 동굴 내부
-		# 목재 보강 기둥 (Timber supports)
-		draw_line(c_pos + Vector2(-12, -12), c_pos + Vector2(-12, 12), Color(0.28, 0.18, 0.10), 3.0)
-		draw_line(c_pos + Vector2(12, -12), c_pos + Vector2(12, 12), Color(0.28, 0.18, 0.10), 3.0)
-		draw_line(c_pos + Vector2(-14, -10), c_pos + Vector2(14, -10), Color(0.32, 0.20, 0.12), 4.0)
+		# 수직 절벽면에 파고든 3D 동굴 요새 입구
+		# 1. 지면 그림자
+		draw_circle(c_pos + Vector2(8, 12), 24.0, Color(0.04, 0.06, 0.04, 0.6))
+		# 2. 깎아낸 석회암 암석 아치 포털
+		draw_circle(c_pos, 24.0, Color(0.42, 0.38, 0.32))
+		draw_circle(c_pos + Vector2(-3, -4), 22.0, Color(0.55, 0.50, 0.44)) # 상부 돌출 암석
+		# 3. 칠흑 같은 3D 석굴 내부 (Deep Cave Tunnel)
+		draw_rect(Rect2(c_pos.x - 16, c_pos.y - 14, 32, 28), Color(0.02, 0.02, 0.02))
+		draw_circle(c_pos, 13.0, Color(0.0, 0.0, 0.0))
+		# 4. 3D 돌출 목재 보강 기둥 (Timber Shoring Frame)
+		# 좌우 지지대
+		draw_rect(Rect2(c_pos.x - 16, c_pos.y - 18, 5, 34), Color(0.32, 0.20, 0.10))
+		draw_rect(Rect2(c_pos.x + 11, c_pos.y - 18, 5, 34), Color(0.32, 0.20, 0.10))
+		# 상부 가로보 (Lintel beam)
+		draw_rect(Rect2(c_pos.x - 18, c_pos.y - 18, 36, 6), Color(0.40, 0.26, 0.14))
+		draw_line(Vector2(c_pos.x - 18, c_pos.y - 18), Vector2(c_pos.x + 18, c_pos.y - 18), Color(0.60, 0.42, 0.25), 1.5)
 
 func _draw_trenches() -> void:
 	for trench in trenches:
 		if trench.size() < 2:
 			continue
-		# 1. 굴착된 참호 구덩이 (어두운 토양)
-		draw_polyline(trench, Color(0.16, 0.12, 0.08), 16.0)
+		# 1. 3D 깊이 굴착된 참호 구덩이 (어두운 토양)
+		draw_polyline(trench, Color(0.12, 0.09, 0.06), 18.0)
 		# 2. 바닥 통나무 발판 (Duckboards)
 		draw_polyline(trench, Color(0.32, 0.24, 0.16), 8.0)
-		# 3. 참호 전면 모래주머니 방벽 (Sandbag parapets)
+		# 3. 참호 전면 3D 모래주머니 방벽 (Sandbag parapets with elevation)
 		for i in range(trench.size()):
 			var p = trench[i]
-			draw_circle(p + Vector2(-6, -6), 4.5, Color(0.72, 0.68, 0.54))
-			draw_circle(p + Vector2(6, 6), 4.5, Color(0.68, 0.64, 0.50))
+			draw_circle(p + Vector2(-6, -8), 5.5, Color(0.75, 0.70, 0.55))
+			draw_circle(p + Vector2(6, -8), 5.5, Color(0.70, 0.65, 0.50))
+			draw_circle(p + Vector2(-6, -5), 4.5, Color(0.55, 0.50, 0.38)) # 모래주머니 음영
 
 func _draw_flak_pits() -> void:
 	for f_pos in flak_positions:
-		# 1. 원형 모래주머니/토사 방호벽 (Revetment)
-		draw_circle(f_pos + Vector2(6, 8), 24.0, Color(0.08, 0.08, 0.08, 0.45))
-		draw_circle(f_pos, 24.0, Color(0.64, 0.58, 0.46)) # 모래주머니 벽
-		draw_circle(f_pos, 18.0, Color(0.18, 0.15, 0.12)) # 포좌 내부 구덩이
-		# 2. 포가 회전 베이스
-		draw_circle(f_pos, 7.0, Color(0.30, 0.32, 0.34))
-		# 3. 96식 25mm 쌍열 대공포신
-		draw_line(f_pos + Vector2(-3, 0), f_pos + Vector2(-3, -22), Color(0.15, 0.16, 0.18), 3.0)
-		draw_line(f_pos + Vector2(3, 0), f_pos + Vector2(3, -22), Color(0.15, 0.16, 0.18), 3.0)
+		# 1. 3D 원형 모래주머니/토사 방호벽 (Revetment with Height)
+		draw_circle(f_pos + Vector2(10, 14), 26.0, Color(0.04, 0.06, 0.04, 0.5)) # 지면 그림자
+		draw_circle(f_pos, 25.0, Color(0.66, 0.60, 0.48)) # 모래주머니 외벽
+		draw_circle(f_pos + Vector2(-2, -3), 23.0, Color(0.78, 0.72, 0.58)) # 상부 햇빛 하이라이트
+		draw_circle(f_pos, 18.0, Color(0.14, 0.12, 0.10)) # 포좌 내부 깊은 구덩이
+		# 2. 강철 포가 회전 베이스
+		draw_circle(f_pos, 7.5, Color(0.32, 0.34, 0.36))
+		# 3. 96식 25mm 쌍열 대공포신 (공중을 향해 솟아오름)
+		draw_line(f_pos + Vector2(-3, 2), f_pos + Vector2(-3, -24), Color(0.12, 0.13, 0.15), 3.2)
+		draw_line(f_pos + Vector2(3, 2), f_pos + Vector2(3, -24), Color(0.12, 0.13, 0.15), 3.2)
 		# 소염기
-		draw_line(f_pos + Vector2(-5, -22), f_pos + Vector2(-1, -22), Color(0.1, 0.1, 0.1), 2.0)
-		draw_line(f_pos + Vector2(1, -22), f_pos + Vector2(5, -22), Color(0.1, 0.1, 0.1), 2.0)
+		draw_line(f_pos + Vector2(-5, -24), f_pos + Vector2(-1, -24), Color(0.08, 0.08, 0.09), 2.5)
+		draw_line(f_pos + Vector2(1, -24), f_pos + Vector2(5, -24), Color(0.08, 0.08, 0.09), 2.5)
 
 func _draw_jungle_trees(wave_time: float) -> void:
-	# 1단계: 모든 수목의 3D 입체 투영 그림자 (남동쪽 방향)
+	# =========================================================================
+	# 1단계: 모든 수목의 남동쪽 지면 사선 장대 그림자 (Pass 1: Ground Shadows)
+	# =========================================================================
 	for t in jungle_trees:
-		var s_pos: Vector2 = t["pos"] + t["shadow_offset"]
+		var root: Vector2 = t["pos"]
+		var h: float = t.get("height", 55.0)
 		var r: float = t["r"]
-		draw_circle(s_pos, r * 1.05, Color(0.03, 0.06, 0.03, 0.42))
+		var s_vec: Vector2 = t.get("shadow_offset", Vector2(30.0, 42.0))
+		var shadow_end = root + s_vec
 		
-	# 2단계: 수목 기둥 & 본체 캐노피
+		# 나무 줄기 그림자 선
+		draw_line(root, shadow_end, Color(0.02, 0.05, 0.02, 0.30), r * 0.35)
+		# 공중 수관이 지면에 드리우는 타원형 그림자
+		draw_circle(shadow_end, r * 1.15, Color(0.02, 0.05, 0.02, 0.38))
+		
+	# =========================================================================
+	# 2단계: 3D 수직 기둥 & 공중 다층 수관 (Pass 2: 3D Upright Trees with Y-Sorting)
+	# =========================================================================
 	for i in range(jungle_trees.size()):
 		var t = jungle_trees[i]
-		var pos: Vector2 = t["pos"]
+		var root: Vector2 = t["pos"]
 		var r: float = t["r"]
 		var t_type: int = t["type"]
 		var base_col: Color = t["col"]
+		var h: float = t.get("height", 55.0)
+		var curve: float = t.get("trunk_curve", 0.0)
 		
-		# 밑동 갈색 나무줄기
-		draw_circle(pos, r * 0.28, Color(0.35, 0.25, 0.15))
+		# 바람에 반응하는 공중 상부 흔들림
+		var sway = sin(wave_time * 2.2 + float(i) * 0.8) * (h * 0.08)
+		var canopy_pos = root + Vector2(curve + sway, -h)
 		
-		var sway = sin(wave_time * 2.0 + float(i) * 0.7) * 2.5
-		var sway_pos = pos + Vector2(sway, sway * 0.4)
+		# A. 지면 뿌리 안착부 (Tree Base Flairs)
+		draw_circle(root, r * 0.28, Color(0.24, 0.16, 0.10))
+		draw_line(root, root + Vector2(-6, 4), Color(0.22, 0.14, 0.08), 3.0)
+		draw_line(root, root + Vector2(6, 4), Color(0.22, 0.14, 0.08), 3.0)
 		
+		# B. 우뚝 솟은 3D 수직 원통형 나무 기둥 (Vertical Shaded Trunk)
+		# 음영 측 (우측 어두운 바크)
+		draw_line(root + Vector2(1.5, 0), canopy_pos + Vector2(1.0, 0), Color(0.18, 0.12, 0.08), 5.5)
+		# 햇빛 측 (좌측 밝은 갈색 바크)
+		draw_line(root - Vector2(1.5, 0), canopy_pos - Vector2(1.0, 0), Color(0.44, 0.34, 0.22), 4.5)
+		# 중심 코어
+		draw_line(root, canopy_pos, Color(0.32, 0.24, 0.15), 5.0)
+		
+		# C. 공중 높이 솟아있는 3D 입체 수관 (Elevated Canopy at canopy_pos)
 		if t_type == 0:
-			# 🌴 펠렐리우 야자수: 중심에서 뻗어나가는 6갈래 야자 잎
-			for leaf_idx in range(6):
-				var angle = leaf_idx * (TAU / 6.0) + sway * 0.05
-				var leaf_end = sway_pos + Vector2.RIGHT.rotated(angle) * (r * 1.25)
-				draw_line(sway_pos, leaf_end, base_col.lightened(0.15), 4.0)
-				# 잎맥 장식
-				draw_circle(leaf_end, 3.5, base_col)
-			# 야자 열매 중심부
-			draw_circle(sway_pos, 4.0, Color(0.28, 0.18, 0.08))
+			# 🌴 펠렐리우 3D 로열 야자수: 3D 반구형으로 뻗어나가는 8갈래 깃털 잎
+			for leaf_idx in range(8):
+				var angle = leaf_idx * (TAU / 8.0) + (sway * 0.04)
+				var leaf_length = r * 1.35
+				var leaf_end = canopy_pos + Vector2.RIGHT.rotated(angle) * leaf_length
+				# 잎맥 아래쪽 짙은 그림자
+				draw_line(canopy_pos, leaf_end + Vector2(0, 3.0), Color(0.08, 0.22, 0.08), 5.0)
+				# 잎맥 윗면 밝은 에메랄드 햇빛 반사면
+				draw_line(canopy_pos, leaf_end, base_col.lightened(0.25), 3.8)
+				# 잎끝 깃털 텍스처
+				draw_circle(leaf_end, 4.0, base_col.lightened(0.35))
+			# 중앙 야자열매 송이
+			draw_circle(canopy_pos + Vector2(0, 2), 5.5, Color(0.28, 0.18, 0.08))
 		elif t_type == 1:
-			# 🌳 빽빽한 정글 활엽수: 겹겹이 쌓인 다층 캐노피
-			draw_circle(sway_pos, r, base_col.darkened(0.2))
-			draw_circle(sway_pos + Vector2(-r * 0.2, -r * 0.2), r * 0.75, base_col)
-			draw_circle(sway_pos + Vector2(-r * 0.35, -r * 0.35), r * 0.45, base_col.lightened(0.25))
+			# 🌳 빽빽한 열대우림 벵골보리수 (Volumetric Foliage Dome)
+			# 하부 깊은 음영 돔
+			draw_circle(canopy_pos + Vector2(0, 4), r * 1.05, base_col.darkened(0.4))
+			# 중간 몸체 녹색 돔
+			draw_circle(canopy_pos, r * 0.95, base_col)
+			# 좌상단 3D 햇빛 하이라이트 돔
+			draw_circle(canopy_pos + Vector2(-r * 0.25, -r * 0.28), r * 0.65, base_col.lightened(0.28))
+			# 최상단 강렬한 태양광 하이라이트 캡
+			draw_circle(canopy_pos + Vector2(-r * 0.35, -r * 0.4), r * 0.35, base_col.lightened(0.5))
+			# 수관에서 늘어진 공기뿌리 덩굴 (Hanging aerial roots)
+			draw_line(canopy_pos + Vector2(-r * 0.4, r * 0.3), canopy_pos + Vector2(-r * 0.4, r * 0.8), Color(0.22, 0.16, 0.10, 0.6), 2.0)
+			draw_line(canopy_pos + Vector2(r * 0.3, r * 0.3), canopy_pos + Vector2(r * 0.3, r * 0.75), Color(0.22, 0.16, 0.10, 0.6), 2.0)
 		else:
-			# 🌲 거목 / 벵골보리수: 대형 입체 수관
-			draw_circle(sway_pos, r * 1.15, base_col.darkened(0.3))
-			draw_circle(sway_pos + Vector2(3, -4), r * 0.9, base_col)
-			draw_circle(sway_pos + Vector2(-r * 0.25, -r * 0.3), r * 0.5, base_col.lightened(0.3))
+			# 🌲 고대 거목 (Ancient Giant Tree): 4개의 입체 잎뭉치 군락
+			var dome_offsets = [
+				Vector2(0, 4), Vector2(-r * 0.45, -r * 0.2), Vector2(r * 0.45, -r * 0.1), Vector2(-r * 0.1, -r * 0.5)
+			]
+			# 하부 기저 어두운 수관
+			draw_circle(canopy_pos, r * 1.2, base_col.darkened(0.45))
+			# 각 볼록 클러스터
+			for d_off in dome_offsets:
+				var c_center = canopy_pos + d_off
+				draw_circle(c_center, r * 0.65, base_col)
+				draw_circle(c_center + Vector2(-r * 0.15, -r * 0.18), r * 0.42, base_col.lightened(0.3))
