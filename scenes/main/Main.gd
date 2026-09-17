@@ -15,6 +15,15 @@ class_name Main
 @export var b29_tex: Texture2D = preload("res://assets/sprites/b29_bomber.png")
 @export var corsair_tex: Texture2D = preload("res://assets/sprites/corsair_bomber.png")
 
+# 🌴 CoH / Gates of Hell 포토리얼리스틱 실사 지형 & 수목 텍스처
+@export var tex_jungle_mud: Texture2D = preload("res://assets/sprites/terrain_jungle_mud.png")
+@export var tex_beach_sand: Texture2D = preload("res://assets/sprites/terrain_beach_sand.png")
+@export var tex_ocean_water: Texture2D = preload("res://assets/sprites/terrain_ocean_water.png")
+@export var tex_runway: Texture2D = preload("res://assets/sprites/runway_asphalt.png")
+@export var tex_rock_cliff: Texture2D = preload("res://assets/sprites/rock_cliff_face.png")
+@export var tex_tree_palm: Texture2D = preload("res://assets/sprites/tree_palm_realistic.png")
+@export var tex_tree_rainforest: Texture2D = preload("res://assets/sprites/tree_rainforest_realistic.png")
+
 @onready var snake_head: Node2D = $SnakeHead
 @onready var enemies_container: Node2D = $Enemies
 @onready var projectiles_container: Node2D = $Projectiles
@@ -79,6 +88,7 @@ var trenches: Array = []
 var flak_positions: Array = []
 
 func _ready() -> void:
+	texture_repeat = CanvasItem.TEXTURE_REPEAT_ENABLED
 	if snake_head:
 		snake_head.add_to_group("player_head")
 		snake_head.global_position = island_center + Vector2(0, 150)
@@ -666,10 +676,16 @@ func _on_loop_completed(polygon: PackedVector2Array, _enemies: Array) -> void:
 
 func _draw() -> void:
 	# =========================================================================
-	# 1. 🌊 태평양 3D 심해 바다 & 산호초 수심 그라디언트
+	# 1. 🌊 태평양 3D 심해 바다 (Photorealistic Ocean with Caustics & Swells)
 	# =========================================================================
-	# 심해 해구 (Deep Abyssal Trench)
-	draw_rect(Rect2(-1500, -1500, 6600, 5800), Color(0.02, 0.05, 0.12))
+	# 심해 해구 (Deep Pacific Ocean Tiled Texture)
+	var ocean_poly = PackedVector2Array([
+		Vector2(-2500, -2500),
+		Vector2(6500, -2500),
+		Vector2(6500, 5500),
+		Vector2(-2500, 5500)
+	])
+	_draw_textured_poly(ocean_poly, tex_ocean_water, 768.0, Color(0.55, 0.70, 0.90))
 	
 	# 심해 거대 파도 너울
 	var wave_time = Time.get_ticks_msec() * 0.001
@@ -678,10 +694,10 @@ func _draw() -> void:
 		draw_line(Vector2(-1200 + offset_x, wy), Vector2(4800 + offset_x, wy), Color(0.05, 0.11, 0.22, 0.45), 6.0)
 	
 	# =========================================================================
-	# 2. 🪸 에메랄드 산호초 장벽 (Barrier Reef Shelf - 3D 빛 굴절 & 암초 실루엣)
+	# 2. 🪸 에메랄드 산호초 장벽 (Barrier Reef Shelf - Caustic Reef Shallows)
 	# =========================================================================
 	var reef_pts = _get_ellipse_points(island_center, ocean_limit_x, ocean_limit_y, 64)
-	draw_colored_polygon(reef_pts, Color(0.06, 0.32, 0.40, 0.88)) # 에메랄드 청록빛 여울
+	_draw_textured_poly(reef_pts, tex_ocean_water, 480.0, Color(0.35, 0.92, 0.85, 0.92))
 	
 	# 수중 암초/산호 군락 실루엣 (Underwater Reef Silhouettes)
 	for ri in range(28):
@@ -696,19 +712,19 @@ func _draw() -> void:
 	draw_polyline(surf_pts1, Color(1.0, 1.0, 1.0, 0.75), 4.0)
 	
 	# =========================================================================
-	# 3. 🏖️ 펠렐리우 섬 해안 백사장 (3D Terraced Sand & Shallows)
+	# 3. 🏖️ 펠렐리우 섬 해안 백사장 (CoH Photorealistic Coral Sand & Shallows)
 	# =========================================================================
 	# 얕은 여울 청록빛 바다 (Nearshore Turquoise Shallows)
 	var shallow_pts = _get_ellipse_points(island_center, island_radius_x + 130.0, island_radius_y + 130.0, 64)
-	draw_colored_polygon(shallow_pts, Color(0.12, 0.52, 0.58, 0.75))
+	_draw_textured_poly(shallow_pts, tex_ocean_water, 360.0, Color(0.50, 1.05, 0.98, 0.82))
 	
-	# 젖은 모래 백사장 (Wet Sand Tide Wash)
+	# 젖은 모래 백사장 (Wet Sand Tide Wash with Ripple Texture)
 	var wet_sand_pts = _get_ellipse_points(island_center, island_radius_x + 85.0, island_radius_y + 85.0, 64)
-	draw_colored_polygon(wet_sand_pts, Color(0.58, 0.50, 0.36))
+	_draw_textured_poly(wet_sand_pts, tex_beach_sand, 420.0, Color(0.75, 0.68, 0.56))
 	
-	# 마른 열대 백사장 (Dry Golden Coral Sand)
+	# 마른 열대 백사장 (Dry Golden Coral Sand Texture)
 	var dry_sand_pts = _get_ellipse_points(island_center, island_radius_x + 35.0, island_radius_y + 35.0, 64)
-	draw_colored_polygon(dry_sand_pts, Color(0.86, 0.80, 0.60))
+	_draw_textured_poly(dry_sand_pts, tex_beach_sand, 360.0, Color(1.05, 1.0, 0.92))
 	
 	# 해안선 파도 거품 라인
 	var beach_foam = _get_ellipse_points(island_center, island_radius_x + 95.0 + sin(wave_time * 2.0) * 8.0, island_radius_y + 95.0 + sin(wave_time * 2.0) * 8.0, 64)
@@ -726,17 +742,17 @@ func _draw() -> void:
 		draw_line(h_pos, h_pos - Vector2(0, 14), Color(0.35, 0.38, 0.40), 3.5) # 수직 빔
 	
 	# =========================================================================
-	# 4. 🌴 울창한 열대 정글 숲 기저 지형 (Tropical Jungle Base)
+	# 4. 🌴 울창한 열대 정글 숲 기저 지형 (Photorealistic Mud, Roots & Foliage Base)
 	# =========================================================================
 	var jungle_pts = _get_ellipse_points(island_center, island_radius_x, island_radius_y, 64)
-	draw_colored_polygon(jungle_pts, Color(0.16, 0.26, 0.15))
+	_draw_textured_poly(jungle_pts, tex_jungle_mud, 480.0, Color(0.95, 1.0, 0.9))
 	
 	# 정글 내부 수풀 텍스처 톤 변화 (3D RTS 명암 덤불)
 	for i in range(40):
 		var j_pos = island_center + Vector2(sin(i * 13.0) * 1100.0, cos(i * 29.0) * 800.0)
 		var r = 90.0 + sin(i) * 30.0
-		draw_circle(j_pos, r, Color(0.12, 0.22, 0.12, 0.6))
-		draw_circle(j_pos + Vector2(8, 8), r * 0.7, Color(0.2, 0.32, 0.18, 0.45))
+		draw_circle(j_pos, r, Color(0.10, 0.18, 0.10, 0.35))
+		draw_circle(j_pos + Vector2(8, 8), r * 0.7, Color(0.18, 0.28, 0.16, 0.25))
 	
 	# =========================================================================
 	# 4-B. 🚜 보급 흙길 (3 Winding Dirt Supply Roads with Tire Ruts)
@@ -776,29 +792,66 @@ func _draw() -> void:
 	_draw_ammo_caches()
 	
 	# =========================================================================
-	# 5. 🛩️ 펠렐리우 십자 비행장 (2개의 교차 아스팔트 활주로 + 유도로 + 엄체호)
+	# 5. 🛩️ 펠렐리우 십자 비행장 (실사 콘크리트 슬래브 활주로 + 유도로 + 엄체호)
 	# =========================================================================
-	# 활주로 아스팔트 베이스
 	var runway1_start = island_center + Vector2(-650, -420)
 	var runway1_end = island_center + Vector2(650, 420)
 	var runway2_start = island_center + Vector2(-550, 380)
 	var runway2_end = island_center + Vector2(550, -380)
 	
-	# 아스팔트 기저부
-	draw_line(runway1_start, runway1_end, Color(0.2, 0.21, 0.22), 70.0)
-	draw_line(runway2_start, runway2_end, Color(0.2, 0.21, 0.22), 60.0)
-	# 활주로 테두리 연석
-	draw_line(runway1_start, runway1_end, Color(0.35, 0.36, 0.38), 74.0)
-	draw_line(runway1_start, runway1_end, Color(0.22, 0.23, 0.24), 70.0)
-	# 활주로 중앙 점선 (흰색/황색 유도선)
-	draw_line(runway1_start, runway1_end, Color(0.85, 0.85, 0.82, 0.75), 3.0)
-	draw_line(runway2_start, runway2_end, Color(0.85, 0.85, 0.82, 0.75), 3.0)
+	# 1) 활주로 하부 자갈/흙 숄더 (Shoulder Base)
+	draw_line(runway1_start, runway1_end, Color(0.24, 0.22, 0.18, 0.8), 86.0)
+	draw_line(runway2_start, runway2_end, Color(0.24, 0.22, 0.18, 0.8), 76.0)
 	
-	# 전투기 격납고 & 유도로 엄체호 (Revets & Hangars)
-	draw_rect(Rect2(island_center.x + 280, island_center.y - 160, 130, 90), Color(0.32, 0.33, 0.35))
-	draw_rect(Rect2(island_center.x + 280, island_center.y - 160, 130, 90), Color(0.12, 0.12, 0.14), false, 3.0)
-	draw_rect(Rect2(island_center.x - 380, island_center.y + 110, 110, 80), Color(0.32, 0.33, 0.35))
-	draw_rect(Rect2(island_center.x - 380, island_center.y + 110, 110, 80), Color(0.12, 0.12, 0.14), false, 3.0)
+	# 2) 실사 균열 콘크리트 슬래브 텍스처 (Photorealistic Runway Slabs)
+	var r1_quad = _get_line_quad(runway1_start, runway1_end, 74.0)
+	var r2_quad = _get_line_quad(runway2_start, runway2_end, 64.0)
+	_draw_textured_poly(r1_quad, tex_runway, 256.0, Color(0.95, 0.95, 0.95))
+	_draw_textured_poly(r2_quad, tex_runway, 256.0, Color(0.95, 0.95, 0.95))
+	
+	# 3) 활주로 콘크리트 외곽 연석선
+	draw_line(runway1_start, runway1_end, Color(0.15, 0.15, 0.16, 0.6), 76.0)
+	draw_line(runway2_start, runway2_end, Color(0.15, 0.15, 0.16, 0.6), 66.0)
+	
+	# 4) 활주로 중앙 점선 유도선
+	draw_line(runway1_start, runway1_end, Color(0.88, 0.88, 0.82, 0.8), 3.0)
+	draw_line(runway2_start, runway2_end, Color(0.88, 0.88, 0.82, 0.8), 3.0)
+	
+	# 5) 활주로 양단 피아노 건반형 착륙 유도 마킹 (Threshold Piano Keys)
+	var r1_dir = (runway1_end - runway1_start).normalized()
+	var r2_dir = (runway2_end - runway2_start).normalized()
+	_draw_runway_threshold(runway1_start, r1_dir, 70.0)
+	_draw_runway_threshold(runway1_end, -r1_dir, 70.0)
+	_draw_runway_threshold(runway2_start, r2_dir, 60.0)
+	_draw_runway_threshold(runway2_end, -r2_dir, 60.0)
+	
+	# 6) 전투기 격납고 & 유도로 엄체호 (Revets & Hangars with Concrete Pads & Blast Berms)
+	var hangar1_rect = Rect2(island_center.x + 280, island_center.y - 160, 130, 90)
+	var h1_quad = PackedVector2Array([
+		hangar1_rect.position,
+		hangar1_rect.position + Vector2(hangar1_rect.size.x, 0),
+		hangar1_rect.position + hangar1_rect.size,
+		hangar1_rect.position + Vector2(0, hangar1_rect.size.y)
+	])
+	_draw_textured_poly(h1_quad, tex_runway, 180.0, Color(0.9, 0.9, 0.9))
+	draw_rect(hangar1_rect, Color(0.12, 0.12, 0.14), false, 2.5)
+	# 모래주머니/토사 방폭벽 (Revetment Berm)
+	draw_line(hangar1_rect.position, hangar1_rect.position + Vector2(hangar1_rect.size.x, 0), Color(0.48, 0.42, 0.32), 7.0)
+	draw_line(hangar1_rect.position + Vector2(hangar1_rect.size.x, 0), hangar1_rect.position + hangar1_rect.size, Color(0.48, 0.42, 0.32), 7.0)
+	draw_line(hangar1_rect.position, hangar1_rect.position + Vector2(0, hangar1_rect.size.y), Color(0.48, 0.42, 0.32), 7.0)
+	
+	var hangar2_rect = Rect2(island_center.x - 380, island_center.y + 110, 110, 80)
+	var h2_quad = PackedVector2Array([
+		hangar2_rect.position,
+		hangar2_rect.position + Vector2(hangar2_rect.size.x, 0),
+		hangar2_rect.position + hangar2_rect.size,
+		hangar2_rect.position + Vector2(0, hangar2_rect.size.y)
+	])
+	_draw_textured_poly(h2_quad, tex_runway, 180.0, Color(0.9, 0.9, 0.9))
+	draw_rect(hangar2_rect, Color(0.12, 0.12, 0.14), false, 2.5)
+	draw_line(hangar2_rect.position, hangar2_rect.position + Vector2(hangar2_rect.size.x, 0), Color(0.48, 0.42, 0.32), 7.0)
+	draw_line(hangar2_rect.position + Vector2(0, hangar2_rect.size.y), hangar2_rect.position + hangar2_rect.size, Color(0.48, 0.42, 0.32), 7.0)
+	draw_line(hangar2_rect.position, hangar2_rect.position + Vector2(0, hangar2_rect.size.y), Color(0.48, 0.42, 0.32), 7.0)
 	
 	# =========================================================================
 	# 6. 🚜 무한궤도 자국 & 🌑 포탄 분화구 & 🔫 황동 탄피 & 🔥 불타는 전차 잔해
@@ -931,6 +984,39 @@ func _get_ellipse_points(center: Vector2, rx: float, ry: float, segs: int) -> Pa
 		pts.append(center + Vector2(cos(a) * rx, sin(a) * ry))
 	return pts
 
+# 🎨 CoH / Gates of Hell 스타일 실사 텍스처 폴리곤 렌더링 헬퍼 (Seamless Hardware Tiling)
+func _draw_textured_poly(pts: PackedVector2Array, tex: Texture2D, tile_scale: float = 512.0, tint: Color = Color.WHITE) -> void:
+	if pts.size() < 3:
+		return
+	if not tex:
+		draw_colored_polygon(pts, tint)
+		return
+	var uvs = PackedVector2Array()
+	var cols = PackedColorArray()
+	for pt in pts:
+		uvs.append(pt / tile_scale)
+		cols.append(tint)
+	draw_polygon(pts, cols, uvs, tex)
+
+func _get_line_quad(start: Vector2, end: Vector2, width: float) -> PackedVector2Array:
+	var dir = (end - start).normalized()
+	var normal = Vector2(-dir.y, dir.x) * (width * 0.5)
+	return PackedVector2Array([
+		start - normal,
+		end - normal,
+		end + normal,
+		start + normal
+	])
+
+func _draw_runway_threshold(end_pt: Vector2, heading_dir: Vector2, width: float) -> void:
+	var norm = Vector2(-heading_dir.y, heading_dir.x)
+	var num_stripes = 6
+	for i in range(num_stripes):
+		var t = (float(i) / float(num_stripes - 1) - 0.5) * (width * 0.72)
+		var p1 = end_pt + norm * t
+		var p2 = p1 + heading_dir * 32.0
+		draw_line(p1, p2, Color(0.92, 0.92, 0.88, 0.85), 3.5)
+
 func _draw_dirt_roads() -> void:
 	for road in dirt_roads:
 		if road.size() < 2:
@@ -980,24 +1066,32 @@ func _draw_elevation_hills() -> void:
 		# 1. 지면 남동쪽 거대 입체 그림자
 		draw_circle(pos + Vector2(26, 36), r * 1.08, Color(0.04, 0.08, 0.04, 0.45))
 		
-		# 2. 기저부 사면
-		draw_circle(pos, r, Color(0.18, 0.26, 0.15))
+		# 2. 기저부 사면 (텍스처 정글 토양)
+		var base_pts = _get_ellipse_points(pos, r, r, 32)
+		_draw_textured_poly(base_pts, tex_jungle_mud, 320.0, Color(0.85, 0.88, 0.80))
 		
-		# 3. 남쪽 깎아지른 수직 단차 암벽 (South Cliff Escarpment)
-		var cliff_h = Rect2(pos.x - r * 0.85, pos.y - h_height, r * 1.7, h_height)
-		draw_rect(cliff_h, Color(0.28, 0.24, 0.18))
-		# 암벽 단층 라인
-		draw_line(Vector2(pos.x - r * 0.85, pos.y - h_height * 0.5), Vector2(pos.x + r * 0.85, pos.y - h_height * 0.5), Color(0.36, 0.30, 0.22), 3.0)
-		draw_line(Vector2(pos.x - r * 0.8, pos.y), Vector2(pos.x + r * 0.8, pos.y), Color(0.14, 0.12, 0.08), 4.0)
+		# 3. 남쪽 깎아지른 수직 단차 암벽 (South Cliff Escarpment with Real Rock Strata)
+		var cliff_quad = PackedVector2Array([
+			Vector2(pos.x - r * 0.85, pos.y),
+			Vector2(pos.x + r * 0.85, pos.y),
+			Vector2(pos.x + r * 0.85, pos.y - h_height),
+			Vector2(pos.x - r * 0.85, pos.y - h_height)
+		])
+		_draw_textured_poly(cliff_quad, tex_rock_cliff, 180.0, Color(0.88, 0.84, 0.78))
+		# 암벽 단층 라인 & 깊은 그림자
+		draw_line(Vector2(pos.x - r * 0.85, pos.y - h_height * 0.5), Vector2(pos.x + r * 0.85, pos.y - h_height * 0.5), Color(0.24, 0.20, 0.15, 0.8), 2.5)
+		draw_line(Vector2(pos.x - r * 0.85, pos.y), Vector2(pos.x + r * 0.85, pos.y), Color(0.08, 0.06, 0.04, 0.9), 3.5)
 		
-		# 4. 공중에 솟아오른 고지 정상 평지 (Elevated Summit Mesa)
+		# 4. 공중에 솟아오른 고지 정상 평지 (Elevated Summit Mesa with Lush Jungle Soil)
 		var top_pos = pos + Vector2(0, -h_height)
-		draw_circle(top_pos, r * 0.85, Color(0.25, 0.38, 0.20))
+		var top_pts = _get_ellipse_points(top_pos, r * 0.85, r * 0.85, 32)
+		_draw_textured_poly(top_pts, tex_jungle_mud, 260.0, Color(1.05, 1.15, 0.98))
 		# 정상부 2단계 능선
-		draw_circle(top_pos + Vector2(-r * 0.1, -r * 0.1), r * 0.5, Color(0.30, 0.44, 0.24))
+		var top_ridge = _get_ellipse_points(top_pos + Vector2(-r * 0.1, -r * 0.1), r * 0.5, r * 0.5, 24)
+		_draw_textured_poly(top_ridge, tex_jungle_mud, 200.0, Color(1.15, 1.25, 1.05))
 		# 북서쪽 햇빛 강렬한 능선 하이라이트 림
-		draw_arc(top_pos, r * 0.85, PI * 0.8, PI * 1.8, 24, Color(0.58, 0.72, 0.45, 0.9), 4.0)
-		draw_arc(top_pos + Vector2(-r * 0.1, -r * 0.1), r * 0.5, PI * 0.8, PI * 1.8, 20, Color(0.70, 0.85, 0.55, 0.8), 3.0)
+		draw_arc(top_pos, r * 0.85, PI * 0.8, PI * 1.8, 24, Color(0.85, 0.95, 0.75, 0.9), 3.5)
+		draw_arc(top_pos + Vector2(-r * 0.1, -r * 0.1), r * 0.5, PI * 0.8, PI * 1.8, 20, Color(0.95, 1.0, 0.85, 0.8), 2.5)
 
 func _draw_bloody_nose_ridge() -> void:
 	# =========================================================================
@@ -1023,7 +1117,7 @@ func _draw_bloody_nose_ridge() -> void:
 		mountain_shadow.append(pt + Vector2(45, 60))
 	draw_colored_polygon(mountain_shadow, Color(0.04, 0.08, 0.04, 0.55))
 	
-	# 2. 깎아지른 수직 석회암 절벽면 (Vertical Limestone Cliff Face)
+	# 2. 깎아지른 수직 석회암 절벽면 (Vertical Limestone Cliff Face with Real Rock Texture)
 	var cliff_pts = PackedVector2Array([
 		ridge_base[4], # 남동쪽 기저부
 		ridge_base[5], # 남서쪽 기저부
@@ -1034,7 +1128,7 @@ func _draw_bloody_nose_ridge() -> void:
 		ridge_summit[3], # 동쪽 능선 정상
 		ridge_base[3]  # 동쪽 기저부
 	])
-	draw_colored_polygon(cliff_pts, Color(0.25, 0.22, 0.18)) # 짙은 석회암 절벽 음영
+	_draw_textured_poly(cliff_pts, tex_rock_cliff, 220.0, Color(0.92, 0.88, 0.84))
 	
 	# 수직 암석 층리(Strata) 및 암벽 절벽 단면 디테일
 	for s_step in range(1, 5):
@@ -1042,21 +1136,21 @@ func _draw_bloody_nose_ridge() -> void:
 		var layer_pts = PackedVector2Array()
 		for pt in [ridge_base[0], ridge_base[5], ridge_base[4], ridge_base[3]]:
 			layer_pts.append(pt + summit_offset * factor)
-		draw_polyline(layer_pts, Color(0.38, 0.34, 0.28, 0.8), 3.0)
+		draw_polyline(layer_pts, Color(0.28, 0.24, 0.18, 0.85), 3.0)
 		
-	# 수직 크랙 및 흘러내린 바위 균열선 (Rock fissures)
+	# 수직 크랙 및 흘러내린 바위 균열선
 	for i in range(-4, 5):
 		var cx = island_center.x + float(i) * 110.0
 		var c_bot = Vector2(cx, island_center.y - 650.0)
 		var c_top = c_bot + summit_offset
-		draw_line(c_bot, c_top, Color(0.12, 0.10, 0.08, 0.75), 2.5)
+		draw_line(c_bot, c_top, Color(0.10, 0.08, 0.06, 0.8), 2.5)
 		# 덩굴 및 이끼
 		draw_line(c_top, c_top + Vector2(0, 35.0), Color(0.18, 0.28, 0.12, 0.7), 3.0)
 	
-	# 3. 3D 산악 정상 능선 고원 평지 (Summit Plateau)
-	draw_colored_polygon(ridge_summit, Color(0.35, 0.42, 0.26)) # 고원 정글 수풀
+	# 3. 3D 산악 정상 능선 고원 평지 (Summit Plateau with Mud & Moss Texture)
+	_draw_textured_poly(ridge_summit, tex_jungle_mud, 240.0, Color(1.05, 1.15, 0.95))
 	# 북서쪽 햇빛 강렬한 능선 암석 림 하이라이트
-	draw_polyline(ridge_summit, Color(0.65, 0.72, 0.55), 4.0)
+	draw_polyline(ridge_summit, Color(0.85, 0.92, 0.75, 0.9), 4.0)
 
 func _draw_limestone_caves() -> void:
 	for c_pos in caves:
@@ -1110,22 +1204,29 @@ func _draw_flak_pits() -> void:
 
 func _draw_jungle_trees(wave_time: float) -> void:
 	# =========================================================================
-	# 1단계: 모든 수목의 남동쪽 지면 사선 장대 그림자 (Pass 1: Ground Shadows)
+	# 1단계: 모든 수목의 남동쪽 지면 사선 장대 그림자 (Pass 1: Canopy Projected Shadows)
 	# =========================================================================
 	for t in jungle_trees:
 		var root: Vector2 = t["pos"]
 		var h: float = t.get("height", 55.0)
 		var r: float = t["r"]
 		var s_vec: Vector2 = t.get("shadow_offset", Vector2(30.0, 42.0))
-		var shadow_end = root + s_vec
+		var shadow_pos = root + s_vec
+		var t_type: int = t["type"]
 		
 		# 나무 줄기 그림자 선
-		draw_line(root, shadow_end, Color(0.02, 0.05, 0.02, 0.30), r * 0.35)
-		# 공중 수관이 지면에 드리우는 타원형 그림자
-		draw_circle(shadow_end, r * 1.15, Color(0.02, 0.05, 0.02, 0.38))
+		draw_line(root, shadow_pos, Color(0.01, 0.03, 0.01, 0.35), 4.0)
+		# 공중 수관이 지면에 드리우는 실제 수관 텍스처 투영 그림자
+		var shadow_tex = tex_tree_palm if t_type == 0 else tex_tree_rainforest
+		var s_size = r * 2.8
+		var s_rect = Rect2(shadow_pos.x - s_size * 0.5, shadow_pos.y - s_size * 0.45, s_size, s_size * 0.9)
+		if shadow_tex:
+			draw_texture_rect(shadow_tex, s_rect, false, Color(0.0, 0.0, 0.0, 0.42))
+		else:
+			draw_circle(shadow_pos, r * 1.15, Color(0.02, 0.05, 0.02, 0.38))
 		
 	# =========================================================================
-	# 2단계: 3D 수직 기둥 & 공중 다층 수관 (Pass 2: 3D Upright Trees with Y-Sorting)
+	# 2단계: 3D 수직 기둥 & 포토리얼리스틱 수관 (Pass 2: 3D Upright Trees with Y-Sorting)
 	# =========================================================================
 	for i in range(jungle_trees.size()):
 		var t = jungle_trees[i]
@@ -1153,46 +1254,35 @@ func _draw_jungle_trees(wave_time: float) -> void:
 		# 중심 코어
 		draw_line(root, canopy_pos, Color(0.32, 0.24, 0.15), 5.0)
 		
-		# C. 공중 높이 솟아있는 3D 입체 수관 (Elevated Canopy at canopy_pos)
+		# C. 공중 높이 솟아있는 포토리얼리스틱 3D RTS 수관 (Elevated Photorealistic Canopy)
 		if t_type == 0:
-			# 🌴 펠렐리우 3D 로열 야자수: 3D 반구형으로 뻗어나가는 8갈래 깃털 잎
-			for leaf_idx in range(8):
-				var angle = leaf_idx * (TAU / 8.0) + (sway * 0.04)
-				var leaf_length = r * 1.35
-				var leaf_end = canopy_pos + Vector2.RIGHT.rotated(angle) * leaf_length
-				# 잎맥 아래쪽 짙은 그림자
-				draw_line(canopy_pos, leaf_end + Vector2(0, 3.0), Color(0.08, 0.22, 0.08), 5.0)
-				# 잎맥 윗면 밝은 에메랄드 햇빛 반사면
-				draw_line(canopy_pos, leaf_end, base_col.lightened(0.25), 3.8)
-				# 잎끝 깃털 텍스처
-				draw_circle(leaf_end, 4.0, base_col.lightened(0.35))
-			# 중앙 야자열매 송이
-			draw_circle(canopy_pos + Vector2(0, 2), 5.5, Color(0.28, 0.18, 0.08))
+			# 🌴 펠렐리우 로열 야자수 (Photorealistic Palm Canopy)
+			if tex_tree_palm:
+				var palm_size = r * 3.2
+				var palm_rect = Rect2(canopy_pos.x - palm_size * 0.5, canopy_pos.y - palm_size * 0.5, palm_size, palm_size)
+				draw_texture_rect(tex_tree_palm, palm_rect, false, base_col.lightened(0.2))
+			else:
+				for leaf_idx in range(8):
+					var angle = leaf_idx * (TAU / 8.0) + (sway * 0.04)
+					var leaf_length = r * 1.35
+					var leaf_end = canopy_pos + Vector2.RIGHT.rotated(angle) * leaf_length
+					draw_line(canopy_pos, leaf_end, base_col.lightened(0.25), 3.8)
 		elif t_type == 1:
-			# 🌳 빽빽한 열대우림 벵골보리수 (Volumetric Foliage Dome)
-			# 하부 깊은 음영 돔
-			draw_circle(canopy_pos + Vector2(0, 4), r * 1.05, base_col.darkened(0.4))
-			# 중간 몸체 녹색 돔
-			draw_circle(canopy_pos, r * 0.95, base_col)
-			# 좌상단 3D 햇빛 하이라이트 돔
-			draw_circle(canopy_pos + Vector2(-r * 0.25, -r * 0.28), r * 0.65, base_col.lightened(0.28))
-			# 최상단 강렬한 태양광 하이라이트 캡
-			draw_circle(canopy_pos + Vector2(-r * 0.35, -r * 0.4), r * 0.35, base_col.lightened(0.5))
-			# 수관에서 늘어진 공기뿌리 덩굴 (Hanging aerial roots)
-			draw_line(canopy_pos + Vector2(-r * 0.4, r * 0.3), canopy_pos + Vector2(-r * 0.4, r * 0.8), Color(0.22, 0.16, 0.10, 0.6), 2.0)
-			draw_line(canopy_pos + Vector2(r * 0.3, r * 0.3), canopy_pos + Vector2(r * 0.3, r * 0.75), Color(0.22, 0.16, 0.10, 0.6), 2.0)
+			# 🌳 빽빽한 열대우림 벵골보리수 (Volumetric Banyan Foliage)
+			if tex_tree_rainforest:
+				var banyan_size = r * 2.8
+				var banyan_rect = Rect2(canopy_pos.x - banyan_size * 0.5, canopy_pos.y - banyan_size * 0.5, banyan_size, banyan_size)
+				draw_texture_rect(tex_tree_rainforest, banyan_rect, false, base_col)
+			else:
+				draw_circle(canopy_pos, r * 0.95, base_col)
 		else:
-			# 🌲 고대 거목 (Ancient Giant Tree): 4개의 입체 잎뭉치 군락
-			var dome_offsets = [
-				Vector2(0, 4), Vector2(-r * 0.45, -r * 0.2), Vector2(r * 0.45, -r * 0.1), Vector2(-r * 0.1, -r * 0.5)
-			]
-			# 하부 기저 어두운 수관
-			draw_circle(canopy_pos, r * 1.2, base_col.darkened(0.45))
-			# 각 볼록 클러스터
-			for d_off in dome_offsets:
-				var c_center = canopy_pos + d_off
-				draw_circle(c_center, r * 0.65, base_col)
-				draw_circle(c_center + Vector2(-r * 0.15, -r * 0.18), r * 0.42, base_col.lightened(0.3))
+			# 🌲 고대 거목 (Ancient Giant Tree)
+			if tex_tree_rainforest:
+				var giant_size = r * 3.5
+				var giant_rect = Rect2(canopy_pos.x - giant_size * 0.5, canopy_pos.y - giant_size * 0.5, giant_size, giant_size)
+				draw_texture_rect(tex_tree_rainforest, giant_rect, false, base_col.darkened(0.12))
+			else:
+				draw_circle(canopy_pos, r * 1.2, base_col.darkened(0.45))
 
 func _draw_barbed_wires() -> void:
 	for wire in barbed_wires:
