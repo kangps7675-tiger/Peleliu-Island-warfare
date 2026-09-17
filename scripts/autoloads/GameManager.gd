@@ -2,8 +2,8 @@ extends Node
 
 ## 전역 게임 매니저: 펠렐리우 1944 (Project Iron Serpent)
 
-# 10분 결전 카운트다운 (600초)
-var countdown_time: float = 10.0 * 60.0
+# 15분 결전 카운트다운 (900초)
+var countdown_time: float = 15.0 * 60.0
 var session_time: float = 0.0
 var kill_count: int = 0
 var total_supplies: int = 0 # 군수 보급품 (골드/젬 대체)
@@ -29,7 +29,7 @@ func _process(delta: float) -> void:
 	session_time += delta
 	countdown_time = maxf(0.0, countdown_time - delta)
 	
-	# 10분 경과 ➔ 00:00 도달 시 핵폭탄(Nuclear Strike) 투하 및 최후 승리!
+	# 15분 경과 ➔ 00:00 도달 시 핵폭탄(Nuclear Strike) 투하 및 최후 승리!
 	if countdown_time <= 0.0 and not is_nuclear_triggered:
 		is_nuclear_triggered = true
 		_trigger_nuclear_strike()
@@ -72,7 +72,7 @@ func _on_segment_added(length: int) -> void:
 	current_snake_length = length
 
 func reset_game() -> void:
-	countdown_time = 10.0 * 60.0
+	countdown_time = 15.0 * 60.0
 	session_time = 0.0
 	kill_count = 0
 	total_supplies = 0

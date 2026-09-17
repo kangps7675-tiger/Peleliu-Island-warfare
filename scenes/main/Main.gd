@@ -2,6 +2,8 @@ extends Node2D
 class_name Main
 
 @export var enemy_scene: PackedScene = preload("res://scenes/entities/enemies/EnemyBase.tscn")
+@export var soldier_scene: PackedScene = preload("res://scenes/entities/enemies/JapaneseSoldier.tscn")
+@export var officer_scene: PackedScene = preload("res://scenes/entities/enemies/JapaneseOfficer.tscn")
 @export var proj_tscn: PackedScene = preload("res://scenes/weapons/Projectile.tscn")
 @export var cannon_tscn: PackedScene = preload("res://scenes/weapons/CannonShell.tscn")
 @export var kamikaze_scene: PackedScene = preload("res://scenes/entities/enemies/KamikazePlane.tscn")
@@ -249,13 +251,13 @@ func _process(delta: float) -> void:
 	queue_redraw()
 
 func _check_boss_spawns() -> void:
-	# 남은 시간 05:00 이하 ➔ 움루브로골 동굴 요새포 보스 출현!
-	if GameManager.countdown_time <= 300.0 and not is_fortress_spawned:
+	# 남은 시간 08:00 이하 ➔ 움루브로골 동굴 요새포 보스 출현!
+	if GameManager.countdown_time <= 480.0 and not is_fortress_spawned:
 		is_fortress_spawned = true
 		_spawn_fortress_boss()
 		
-	# 남은 시간 02:00 이하 ➔ 전함 야마토 해안 출현!
-	if GameManager.countdown_time <= 120.0 and not is_yamato_spawned:
+	# 남은 시간 03:00 이하 ➔ 전함 야마토 해안 출현!
+	if GameManager.countdown_time <= 180.0 and not is_yamato_spawned:
 		is_yamato_spawned = true
 		_spawn_yamato_boss()
 
@@ -264,16 +266,12 @@ func _spawn_fortress_boss() -> void:
 		var boss = fortress_boss_scene.instantiate()
 		boss.global_position = island_center + Vector2(0, -820)
 		enemies_container.add_child(boss)
-	if hud and hud.has_method("show_event_banner"):
-		hud.show_event_banner("⛰️ [적 요새포 가동] 북부 움루브로골 동굴 요새포가 포격을 시작했습니다!", Color(1.0, 0.4, 0.2), 5.0)
 
 func _spawn_yamato_boss() -> void:
 	if yamato_boss_scene:
 		var boss = yamato_boss_scene.instantiate()
 		boss.global_position = island_center + Vector2(0, 1900)
 		enemies_container.add_child(boss)
-	if hud and hud.has_method("show_event_banner"):
-		hud.show_event_banner("⚓ [거대전함 출현] 해상에 일본 해군 전함 야마토가 나타났습니다!", Color(1.0, 0.3, 0.3), 5.0)
 
 func _constrain_snake_to_ocean_limit() -> void:
 	if not is_instance_valid(snake_head):
@@ -290,7 +288,7 @@ func _start_allied_grand_airstrike() -> void:
 	fleet_fly_y = -2200.0
 	AudioManager.start_propeller_sound()
 	if hud and hud.has_method("show_event_banner"):
-		hud.show_event_banner("💥 [연합군 250대 대편대 공습] B-29 융단폭격 개시! 전장 초토화!", Color(1.0, 0.85, 0.2), 6.5)
+		hud.show_event_banner("✈️ [1분 주기 공습] 연합군 250대 대편대 B-29 융단폭격 개시!", Color(1.0, 0.85, 0.2), 5.0)
 
 func _process_allied_grand_airstrike(delta: float) -> void:
 	airstrike_run_timer += delta
@@ -324,7 +322,7 @@ func trigger_nuclear_strike() -> void:
 	AudioManager.play_sfx("explosion", 5.0)
 	
 	if hud and hud.has_method("show_event_banner"):
-		hud.show_event_banner("☢️ [긴급 경보] 작전 제한시간 만료! 연합군 원자폭탄 투하 승인!", Color(1.0, 0.9, 0.1), 6.0)
+		hud.show_event_banner("☢️ [작전 만료] 15분 결전 제한시간 만료! 연합군 원자폭탄 투하 승인!", Color(1.0, 0.9, 0.1), 6.0)
 	
 	# 화면 진동
 	if is_instance_valid(snake_head) and snake_head.get("camera_shake_amount") != null:
@@ -356,18 +354,35 @@ func _spawn_enemy_wave() -> void:
 	if not is_instance_valid(snake_head):
 		return
 	
-	var spawn_count = randi_range(3, 5)
-	for i in range(spawn_count):
-		var angle = randf() * TAU
-		var dist = randf_range(650.0, 900.0)
-		var spawn_pos = snake_head.global_position + Vector2.RIGHT.rotated(angle) * dist
+	var squad_center_angle = randf() * TAU
+	var squad_center_dist = randf_range(680.0, 920.0)
+	var squad_center = snake_head.global_position + Vector2.RIGHT.rotated(squad_center_angle) * squad_center_dist
+	
+	var dx = (squad_center.x - island_center.x) / (island_radius_x + 150.0)
+	var dy = (squad_center.y - island_center.y) / (island_radius_y + 150.0)
+	if (dx * dx + dy * dy) > 1.0:
+		return
 		
-		var dx = (spawn_pos.x - island_center.x) / (island_radius_x + 150.0)
-		var dy = (spawn_pos.y - island_center.y) / (island_radius_y + 150.0)
-		if (dx * dx + dy * dy) <= 1.0:
-			var enemy = enemy_scene.instantiate()
-			enemy.global_position = spawn_pos
-			enemies_container.add_child(enemy)
+	# 1. 🎖️ 일본군 분대장: 100식 기관단총 장교 1명
+	if officer_scene:
+		var officer = officer_scene.instantiate()
+		officer.global_position = squad_center
+		enemies_container.add_child(officer)
+		
+	# 2. 🪖 일본군 보병: 30년식 총검 아리사카 소총병 3~5명
+	if soldier_scene:
+		var soldier_count = randi_range(3, 5)
+		for s_idx in range(soldier_count):
+			var soldier = soldier_scene.instantiate()
+			var s_offset = Vector2(randf_range(-65, 65), randf_range(-65, 65))
+			soldier.global_position = squad_center + s_offset
+			enemies_container.add_child(soldier)
+			
+	# 3. 🚜 25% 확률로 치하 전차 1대 화력 지원 증원
+	if randf() < 0.25 and enemy_scene:
+		var tank = enemy_scene.instantiate()
+		tank.global_position = squad_center + Vector2(randf_range(-80, 80), randf_range(-80, 80))
+		enemies_container.add_child(tank)
 
 func _spawn_kamikaze_raid() -> void:
 	if not is_instance_valid(snake_head) or not kamikaze_scene:

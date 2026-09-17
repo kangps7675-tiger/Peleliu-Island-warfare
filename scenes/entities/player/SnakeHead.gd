@@ -258,26 +258,71 @@ func take_damage(amount: float) -> void:
 		EventBus.game_over.emit()
 
 func _draw() -> void:
-	# 1. 800mm 구스타프 거포 포신 및 유압 후퇴기 (블로우백 모션)
+	# =========================================================================
+	# 3D RTS 강철 지상전함 (Super-Heavy Landship) 머리 렌더링
+	# =========================================================================
+	# 1. 3D 지면 투영 그림자 (항상 전장 태양광 방향인 남동쪽으로 드리움)
+	var global_shadow_dir = Vector2(16.0, 22.0)
+	var local_shadow = global_shadow_dir.rotated(-rotation)
+	draw_circle(local_shadow, head_radius * 1.15, Color(0.02, 0.05, 0.03, 0.45))
+	
+	# 2. 좌우 육중한 강철 무한궤도 (Caterpillar Tracks & Road Wheels)
+	var track_w = head_radius * 1.7
+	var track_h = 10.0
+	var track_y_offset = head_radius * 0.78
+	
+	# 좌측 궤도
+	draw_rect(Rect2(-track_w * 0.5, -track_y_offset - track_h * 0.5, track_w, track_h), Color(0.12, 0.13, 0.15))
+	# 우측 궤도
+	draw_rect(Rect2(-track_w * 0.5, track_y_offset - track_h * 0.5, track_w, track_h), Color(0.12, 0.13, 0.15))
+	# 궤도 강철 패드 핀 (Track Shoes)
+	for i in range(-5, 6):
+		var px = float(i) * (track_w / 11.0)
+		draw_line(Vector2(px, -track_y_offset - track_h * 0.5), Vector2(px, -track_y_offset + track_h * 0.5), Color(0.25, 0.27, 0.30), 2.0)
+		draw_line(Vector2(px, track_y_offset - track_h * 0.5), Vector2(px, track_y_offset + track_h * 0.5), Color(0.25, 0.27, 0.30), 2.0)
+	
+	# 3. 후방 유압 커플러 힌지 & 장갑 동력 케이블 (다음 마디 연결부)
+	draw_circle(Vector2(-head_radius * 0.85, 0), 7.0, Color(0.15, 0.16, 0.18))
+	draw_rect(Rect2(-head_radius * 1.1, -4.0, head_radius * 0.35, 8.0), Color(0.28, 0.30, 0.32))
+	draw_line(Vector2(-head_radius * 0.7, -6), Vector2(-head_radius * 1.1, -8), Color(0.08, 0.09, 0.10), 3.0) # 동력 케이블 1
+	draw_line(Vector2(-head_radius * 0.7, 6), Vector2(-head_radius * 1.1, 8), Color(0.08, 0.09, 0.10), 3.0)  # 동력 케이블 2
+	
+	# 4. 800mm 구스타프 초대형 주포 포신 및 유압 후퇴기 (블로우백 모션)
 	var barrel_start = Vector2(10.0 - gustav_recoil_offset, 0)
-	var barrel_end = Vector2(44.0 - gustav_recoil_offset, 0)
+	var barrel_end = Vector2(48.0 - gustav_recoil_offset, 0)
 	
-	# 중장갑 포신 기저부 (암체호 마운트)
-	draw_line(barrel_start, barrel_end, Color(0.24, 0.26, 0.28), 14.0)
-	draw_line(barrel_start, barrel_end, Color(0.12, 0.13, 0.14), 18.0)
+	# 중장갑 포신 기저부 & 800mm 초대형 구경 강철 포신
+	draw_line(barrel_start, barrel_end, Color(0.14, 0.15, 0.16), 20.0)
+	draw_line(barrel_start, barrel_end, Color(0.28, 0.30, 0.33), 15.0)
 	# 포구 제퇴기 (Muzzle Brake)
-	draw_rect(Rect2(barrel_end.x - 4.0, -9.0, 8.0, 18.0), Color(0.18, 0.19, 0.2))
-	# 포신 하부 유압 완충기 실린더 (Hydraulic Recoil Damper)
-	draw_line(barrel_start + Vector2(0, 8), barrel_start + Vector2(22, 8), Color(0.45, 0.46, 0.48), 4.0)
-	draw_line(barrel_start + Vector2(0, -8), barrel_start + Vector2(22, -8), Color(0.45, 0.46, 0.48), 4.0)
+	draw_rect(Rect2(barrel_end.x - 5.0, -10.0, 10.0, 20.0), Color(0.16, 0.17, 0.18))
+	draw_line(barrel_end - Vector2(2, 0), barrel_end + Vector2(2, 0), Color(0.05, 0.05, 0.05), 14.0) # 포구 구멍
+	# 포신 하부 크롬 도금 유압 완충기 실린더 (Hydraulic Recoil Damper)
+	draw_line(barrel_start + Vector2(0, 9), barrel_start + Vector2(24, 9), Color(0.55, 0.58, 0.62), 4.0)
+	draw_line(barrel_start + Vector2(0, -9), barrel_start + Vector2(24, -9), Color(0.55, 0.58, 0.62), 4.0)
 	
-	# 2. 800mm 구스타프 발사 순간 포구 화염 폭풍 (HDR 글로우)
+	# 5. 장갑 만틀렛 방패 (Armored Gun Mantlet) & 볼트 리벳
+	draw_rect(Rect2(head_radius * 0.15, -head_radius * 0.5, head_radius * 0.35, head_radius * 1.0), Color(0.24, 0.26, 0.28))
+	draw_line(Vector2(head_radius * 0.15, -head_radius * 0.5), Vector2(head_radius * 0.5, -head_radius * 0.5), Color(0.55, 0.60, 0.65), 2.5) # 상부 하이라이트
+	draw_line(Vector2(head_radius * 0.5, head_radius * 0.5), Vector2(head_radius * 0.15, head_radius * 0.5), Color(0.10, 0.11, 0.12), 2.5) # 하부 음영
+	
+	# 6. 전방 야간 탐조 서치라이트 빔 콘 (Searchlight Beam)
+	var searchlight_start = Vector2(head_radius * 0.6, -head_radius * 0.4)
+	var beam_pts = PackedVector2Array([
+		searchlight_start,
+		searchlight_start + Vector2(160.0, -55.0),
+		searchlight_start + Vector2(175.0, 25.0)
+	])
+	draw_colored_polygon(beam_pts, Color(1.0, 0.95, 0.7, 0.12))
+	draw_circle(searchlight_start, 4.0, Color(2.5, 2.5, 2.0))
+	
+	# 7. 800mm 구스타프 발사 순간 포구 화염 폭풍 (HDR 글로우)
 	if gustav_flash_timer > 0.0:
 		var flash_pos = barrel_end + Vector2(10.0, 0)
-		draw_circle(flash_pos, 38.0, Color(3.5, 1.2, 0.2, 0.95))
-		draw_circle(flash_pos, 22.0, Color(4.5, 3.8, 1.8, 1.0))
-		draw_line(flash_pos, flash_pos + Vector2(55.0, -22.0), Color(3.0, 1.5, 0.3), 6.0)
-		draw_line(flash_pos, flash_pos + Vector2(70.0, 0.0), Color(4.0, 4.0, 3.0), 8.0)
-		draw_line(flash_pos, flash_pos + Vector2(55.0, 22.0), Color(3.0, 1.5, 0.3), 6.0)
+		draw_circle(flash_pos, 42.0, Color(3.5, 1.2, 0.2, 0.95))
+		draw_circle(flash_pos, 24.0, Color(4.5, 3.8, 1.8, 1.0))
+		draw_line(flash_pos, flash_pos + Vector2(65.0, -25.0), Color(3.0, 1.5, 0.3), 7.0)
+		draw_line(flash_pos, flash_pos + Vector2(80.0, 0.0), Color(4.0, 4.0, 3.0), 9.0)
+		draw_line(flash_pos, flash_pos + Vector2(65.0, 25.0), Color(3.0, 1.5, 0.3), 7.0)
 		# 포구 가스 충격파 링
-		draw_arc(flash_pos, 50.0, 0, TAU, 24, Color(3.0, 2.0, 0.8, 0.8), 4.0)
+		draw_arc(flash_pos, 55.0, 0, TAU, 24, Color(3.0, 2.0, 0.8, 0.8), 4.0)

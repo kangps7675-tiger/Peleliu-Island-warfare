@@ -1,0 +1,14 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://scenes/entities/enemies/JapaneseOfficer.gd" id="1_officer"]
+
+[sub_resource type="CircleShape2D" id="CircleShape2D_officer"]
+radius = 13.0
+
+[node name="JapaneseOfficer" type="CharacterBody2D"]
+collision_layer = 4
+collision_mask = 7
+script = ExtResource("1_officer")
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="."]
+shape = SubResource("CircleShape2D_officer")

@@ -28,14 +28,22 @@ func _ready() -> void:
 	victory_panel.visible = false
 	encircle_flash.modulate.a = 0.0
 	
-	# 작전 개시 시점에만 첫 4.5초간 작전 목표 안내문 출력!
-	show_event_banner("⚔️ [작전 개시] 펠렐리우 섬 상륙: 10분간 생존하여 섬을 장악하라!", Color(1.0, 0.9, 0.3), 4.5)
+	# 작전 개시 시점에만 15분 결전 작전 목표 안내문 출력!
+	show_event_banner("⏱️ [작전 개시] 펠렐리우 15분 결전: 최후까지 생존하라!", Color(1.0, 0.9, 0.3), 5.0)
 
 func _process(delta: float) -> void:
-	# 1. 상단 중앙 10분 카운트다운 타이머
+	# 1. 상단 중앙 15분 카운트다운 & 1분 공습 카운트다운 동시 표시
 	var mins = int(GameManager.countdown_time) / 60
 	var secs = int(GameManager.countdown_time) % 60
-	time_label.text = "⏱ %02d:%02d" % [mins, secs]
+	
+	var main_scene = get_tree().current_scene
+	var air_time: float = 60.0
+	if main_scene and "airstrike_countdown" in main_scene:
+		air_time = maxf(0.0, main_scene.airstrike_countdown)
+	var air_mins = int(air_time) / 60
+	var air_secs = int(air_time) % 60
+	
+	time_label.text = "⏱ 작전 %02d:%02d  |  ✈️ 공습 %02d:%02d" % [mins, secs, air_mins, air_secs]
 	
 	# 2. 전투 통계 표시
 	kill_label.text = "🎯 격파: %d" % GameManager.kill_count
@@ -47,20 +55,6 @@ func _process(delta: float) -> void:
 		tier_badge.text = "TIER %d" % GameManager.current_scale_tier
 	else:
 		tier_badge.visible = false
-		
-	# 4. 거대화 티어 변경 시점에만 안내문 팝업
-	if GameManager.current_scale_tier > last_reported_tier:
-		last_reported_tier = GameManager.current_scale_tier
-		show_event_banner("⭐ [전차 강화] 보급 달성! 차체 TIER %d 거대화 완료!" % last_reported_tier, Color(0.4, 0.9, 1.0), 3.5)
-	
-	# 5. 가미카제 출현 시점에만 안내문 팝업
-	var kamikazes = get_tree().get_nodes_in_group("kamikaze")
-	if not kamikazes.is_empty():
-		if not kamikaze_announced:
-			kamikaze_announced = true
-			show_event_banner("🚨 [공습 경보] 제로센 가미카제 급강하 중! 30MM 대공포 집중 사격!", Color(1.0, 0.3, 0.3), 3.5)
-	else:
-		kamikaze_announced = false
 		
 	# 6. 배너 타이머 관리
 	if banner_timer > 0.0:

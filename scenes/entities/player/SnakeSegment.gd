@@ -126,21 +126,70 @@ func _fire_heavy_cannon() -> void:
 		main_scene.spawn_cannon_shell(global_position + dir * 26.0, dir)
 
 func _draw() -> void:
-	# 1. 마디 상부 원형 장갑 포탑 베이스 (Armored Turret Cupola)
-	draw_circle(Vector2.ZERO, 10.0, Color(0.2, 0.22, 0.24))
-	draw_arc(Vector2.ZERO, 10.0, 0, TAU, 16, Color(0.12, 0.13, 0.15), 2.0)
+	# =========================================================================
+	# 3D RTS 강철 지상전함 장갑 객차 (Landship Carriage) 렌더링
+	# =========================================================================
+	# 1. 3D 지면 투영 그림자 (전장 태양광 방향인 남동쪽으로 드리움)
+	var global_shadow_dir = Vector2(12.0, 18.0)
+	var local_shadow = global_shadow_dir.rotated(-rotation)
+	draw_circle(local_shadow, 17.0, Color(0.02, 0.05, 0.03, 0.42))
 	
-	# 2. 적을 향해 독립 회전하는 30mm Flak 38 쌍열 대공포신 (Twin Autocannon Barrels)
+	# 2. 좌우 강철 무한궤도 어셈블리 (Caterpillar Tracks)
+	var track_w = 26.0
+	var track_h = 7.0
+	var track_y = 13.0
+	
+	# 좌측/우측 궤도 기저부
+	draw_rect(Rect2(-track_w * 0.5, -track_y - track_h * 0.5, track_w, track_h), Color(0.11, 0.12, 0.14))
+	draw_rect(Rect2(-track_w * 0.5, track_y - track_h * 0.5, track_w, track_h), Color(0.11, 0.12, 0.14))
+	# 궤도 핀 (Track shoes)
+	for i in range(-3, 4):
+		var px = float(i) * (track_w / 7.0)
+		draw_line(Vector2(px, -track_y - track_h * 0.5), Vector2(px, -track_y + track_h * 0.5), Color(0.24, 0.26, 0.28), 1.8)
+		draw_line(Vector2(px, track_y - track_h * 0.5), Vector2(px, track_y + track_h * 0.5), Color(0.24, 0.26, 0.28), 1.8)
+	
+	# 3. 전후방 유압 연결 커플러 & 장갑 동력 케이블 (Articulated Couplers)
+	draw_rect(Rect2(10.0, -3.0, 6.0, 6.0), Color(0.25, 0.27, 0.30)) # 전방 연결 텅
+	draw_rect(Rect2(-16.0, -3.0, 6.0, 6.0), Color(0.25, 0.27, 0.30)) # 후방 연결 히치
+	draw_circle(Vector2(-14.0, 0), 4.0, Color(0.15, 0.16, 0.18))
+	draw_line(Vector2(-12.0, -4.0), Vector2(-16.0, -6.0), Color(0.08, 0.09, 0.10), 2.5) # 유압 호스
+	draw_line(Vector2(-12.0, 4.0), Vector2(-16.0, 6.0), Color(0.08, 0.09, 0.10), 2.5)
+	
+	# 4. 장갑 객차 본체 차체 (Armored Carriage Hull with Bevels)
+	draw_rect(Rect2(-11.0, -11.0, 22.0, 22.0), Color(0.22, 0.24, 0.27))
+	# 상부/좌측 햇빛 하이라이트 베벨
+	draw_line(Vector2(-11.0, -11.0), Vector2(11.0, -11.0), Color(0.48, 0.52, 0.58), 2.0)
+	draw_line(Vector2(-11.0, -11.0), Vector2(-11.0, 11.0), Color(0.48, 0.52, 0.58), 2.0)
+	# 하부/우측 그림자 베벨
+	draw_line(Vector2(11.0, -11.0), Vector2(11.0, 11.0), Color(0.10, 0.11, 0.13), 2.0)
+	draw_line(Vector2(-11.0, 11.0), Vector2(11.0, 11.0), Color(0.10, 0.11, 0.13), 2.0)
+	
+	# 코너 리벳 볼트
+	draw_circle(Vector2(-8.0, -8.0), 1.5, Color(0.65, 0.70, 0.75))
+	draw_circle(Vector2(8.0, -8.0), 1.5, Color(0.65, 0.70, 0.75))
+	draw_circle(Vector2(-8.0, 8.0), 1.5, Color(0.65, 0.70, 0.75))
+	draw_circle(Vector2(8.0, 8.0), 1.5, Color(0.65, 0.70, 0.75))
+	
+	# 5. 마디 상부 원형 장갑 포탑 베이스 (Armored Turret Cupola)
+	draw_circle(Vector2.ZERO, 9.5, Color(0.18, 0.20, 0.22))
+	draw_arc(Vector2.ZERO, 9.5, 0, TAU, 16, Color(0.10, 0.12, 0.14), 2.0)
+	
+	# 6. 적을 향해 360도 독립 회전하는 30mm Flak 38 쌍열 대공포신 (Twin Autocannon Barrels)
 	var barrel_dir = Vector2.RIGHT.rotated(turret_aim_angle)
 	var normal = Vector2(-barrel_dir.y, barrel_dir.x) * 3.5
-	var b_len = 16.0
+	var b_len = 17.0
 	
-	draw_line(normal, normal + barrel_dir * b_len, Color(0.1, 0.1, 0.12), 3.0)
-	draw_line(-normal, -normal + barrel_dir * b_len, Color(0.1, 0.1, 0.12), 3.0)
+	draw_line(normal, normal + barrel_dir * b_len, Color(0.10, 0.11, 0.12), 3.0)
+	draw_line(-normal, -normal + barrel_dir * b_len, Color(0.10, 0.11, 0.12), 3.0)
+	# 포구 소염기
+	draw_line(normal + barrel_dir * (b_len - 1.0) - normal * 0.3, normal + barrel_dir * (b_len - 1.0) + normal * 0.3, Color(0.06, 0.07, 0.08), 2.0)
+	draw_line(-normal + barrel_dir * (b_len - 1.0) - normal * 0.3, -normal + barrel_dir * (b_len - 1.0) + normal * 0.3, Color(0.06, 0.07, 0.08), 2.0)
 	
-	# 3. 발사 시 포구 화염 (Muzzle Flash)
+	# 7. 발사 시 포구 화염 (Muzzle Flash)
 	if flak_flash_timer > 0.0:
 		var f_pos1 = normal + barrel_dir * (b_len + 4.0)
 		var f_pos2 = -normal + barrel_dir * (b_len + 4.0)
-		draw_circle(f_pos1, 6.0, Color(3.0, 1.8, 0.4, 0.95))
-		draw_circle(f_pos2, 6.0, Color(3.0, 1.8, 0.4, 0.95))
+		draw_circle(f_pos1, 7.0, Color(3.5, 2.0, 0.4, 0.95))
+		draw_circle(f_pos2, 7.0, Color(3.5, 2.0, 0.4, 0.95))
+		draw_circle(f_pos1, 3.0, Color(4.5, 4.0, 2.0, 1.0))
+		draw_circle(f_pos2, 3.0, Color(4.5, 4.0, 2.0, 1.0))
