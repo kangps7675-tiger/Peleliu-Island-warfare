@@ -17,6 +17,12 @@ var snake_scale_multiplier: float = 1.0
 # 엔딩 피날레 트리거 플래그
 var is_nuclear_triggered: bool = false
 
+# 꼬리물기(우로보로스) 최소 마디 상수
+const MIN_SEGMENTS_FOR_BITE: int = 15
+
+func is_bite_ready() -> bool:
+	return current_snake_length >= MIN_SEGMENTS_FOR_BITE
+
 func _ready() -> void:
 	EventBus.gem_collected.connect(_on_supply_collected)
 	EventBus.enemy_killed.connect(_on_enemy_killed)
