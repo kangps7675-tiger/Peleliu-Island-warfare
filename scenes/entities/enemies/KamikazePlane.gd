@@ -76,21 +76,26 @@ func _self_destruct() -> void:
 			main_scene.add_crater_decal(global_position, 35.0)
 	queue_free()
 
+@export var crashing_plane_scene: PackedScene = preload("res://scenes/entities/enemies/CrashingPlane.tscn")
+
 func _die_airborne() -> void:
-	# 공중 요격 폭파
 	EventBus.enemy_killed.emit(global_position, "KAMIKAZE")
-	var main_scene = get_tree().current_scene
-	if main_scene and main_scene.has_method("spawn_heavy_explosion"):
-		main_scene.spawn_heavy_explosion(global_position, 120.0)
+	
+	# 불타며 추락하는 전투기 생성!
+	if crashing_plane_scene:
+		var crash = crashing_plane_scene.instantiate()
+		crash.initialize(global_position, velocity)
+		get_parent().call_deferred("add_child", crash)
 		
 	if gem_scene:
 		for i in range(3):
 			var g = gem_scene.instantiate()
 			g.global_position = global_position + Vector2(randf_range(-20, 20), randf_range(-20, 20))
 			get_parent().call_deferred("add_child", g)
+			
 	queue_free()
 
 func _draw() -> void:
-	# 급강하 스피드 라인 (제리코 사이렌 시각화)
+	# 급강하 스피드 라인
 	draw_line(Vector2(-30, -18), Vector2(-60, -18), Color(1.0, 0.5, 0.1, 0.6), 2.0)
 	draw_line(Vector2(-30, 18), Vector2(-60, 18), Color(1.0, 0.5, 0.1, 0.6), 2.0)

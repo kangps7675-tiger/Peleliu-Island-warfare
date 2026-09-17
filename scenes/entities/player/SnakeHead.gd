@@ -130,15 +130,18 @@ func _handle_gustav_cannon(delta: float) -> void:
 
 func _fire_gustav() -> void:
 	gustav_cooldown = GUSTAV_INTERVAL
-	gustav_recoil_offset = 18.0 # 육중한 블로우백
-	gustav_flash_timer = 0.16
-	camera_shake_amount = 14.0 # 화면 대진동!
+	gustav_recoil_offset = 24.0 # 육중한 유압 블로우백 후퇴
+	gustav_flash_timer = 0.18
+	camera_shake_amount = 16.0 # 화면 대진동!
+	
+	# 🔊 800mm 구스타프 열차포 굉음 사운드 재생
+	AudioManager.play_sfx("gustav", 3.2)
 	
 	# 💥 800mm 살인적인 반동: 뱀 머리가 순간 뒤로 쾅! 튕겨나감
 	var fire_dir = Vector2.RIGHT.rotated(rotation)
 	velocity -= fire_dir * 600.0
 	
-	var muzzle_pos = global_position + fire_dir * (head_radius + 28.0)
+	var muzzle_pos = global_position + fire_dir * (head_radius + 32.0)
 	var main_scene = get_tree().current_scene
 	if main_scene and main_scene.has_method("spawn_cannon_shell"):
 		main_scene.spawn_cannon_shell(muzzle_pos, fire_dir)
@@ -255,12 +258,26 @@ func take_damage(amount: float) -> void:
 		EventBus.game_over.emit()
 
 func _draw() -> void:
-	# 800mm 구스타프 발사 순간 거대한 포구 화염 (Muzzle Flash)
+	# 1. 800mm 구스타프 거포 포신 및 유압 후퇴기 (블로우백 모션)
+	var barrel_start = Vector2(10.0 - gustav_recoil_offset, 0)
+	var barrel_end = Vector2(44.0 - gustav_recoil_offset, 0)
+	
+	# 중장갑 포신 기저부 (암체호 마운트)
+	draw_line(barrel_start, barrel_end, Color(0.24, 0.26, 0.28), 14.0)
+	draw_line(barrel_start, barrel_end, Color(0.12, 0.13, 0.14), 18.0)
+	# 포구 제퇴기 (Muzzle Brake)
+	draw_rect(Rect2(barrel_end.x - 4.0, -9.0, 8.0, 18.0), Color(0.18, 0.19, 0.2))
+	# 포신 하부 유압 완충기 실린더 (Hydraulic Recoil Damper)
+	draw_line(barrel_start + Vector2(0, 8), barrel_start + Vector2(22, 8), Color(0.45, 0.46, 0.48), 4.0)
+	draw_line(barrel_start + Vector2(0, -8), barrel_start + Vector2(22, -8), Color(0.45, 0.46, 0.48), 4.0)
+	
+	# 2. 800mm 구스타프 발사 순간 포구 화염 폭풍 (HDR 글로우)
 	if gustav_flash_timer > 0.0:
-		var flash_pos = Vector2(head_radius + 20.0, 0)
-		# HDR 블룸 발광
-		draw_circle(flash_pos, 32.0, Color(2.5, 0.8, 0.2, 0.9))
-		draw_circle(flash_pos, 18.0, Color(3.0, 2.5, 1.2, 1.0))
-		draw_line(flash_pos, flash_pos + Vector2(45.0, -18.0), Color(2.0, 1.2, 0.3), 5.0)
-		draw_line(flash_pos, flash_pos + Vector2(55.0, 0.0), Color(3.0, 3.0, 2.5), 6.0)
-		draw_line(flash_pos, flash_pos + Vector2(45.0, 18.0), Color(2.0, 1.2, 0.3), 5.0)
+		var flash_pos = barrel_end + Vector2(10.0, 0)
+		draw_circle(flash_pos, 38.0, Color(3.5, 1.2, 0.2, 0.95))
+		draw_circle(flash_pos, 22.0, Color(4.5, 3.8, 1.8, 1.0))
+		draw_line(flash_pos, flash_pos + Vector2(55.0, -22.0), Color(3.0, 1.5, 0.3), 6.0)
+		draw_line(flash_pos, flash_pos + Vector2(70.0, 0.0), Color(4.0, 4.0, 3.0), 8.0)
+		draw_line(flash_pos, flash_pos + Vector2(55.0, 22.0), Color(3.0, 1.5, 0.3), 6.0)
+		# 포구 가스 충격파 링
+		draw_arc(flash_pos, 50.0, 0, TAU, 24, Color(3.0, 2.0, 0.8, 0.8), 4.0)

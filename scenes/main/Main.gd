@@ -58,6 +58,15 @@ var heavy_explosions: Array = [] # 대폭발 이펙트 [{pos: Vector2, max_r: fl
 var current_seal_polygon: PackedVector2Array = PackedVector2Array()
 var seal_alpha: float = 0.0
 
+# 🌴 3D RTS 전장 지형 피처들 (수많은 나무들, 동굴들, 흙길들, 강, 언덕, 참호, 대공포좌)
+var jungle_trees: Array = []
+var dirt_roads: Array = []
+var river_points: PackedVector2Array = PackedVector2Array()
+var hills: Array = []
+var caves: Array = []
+var trenches: Array = []
+var flak_positions: Array = []
+
 func _ready() -> void:
 	if snake_head:
 		snake_head.add_to_group("player_head")
@@ -66,6 +75,7 @@ func _ready() -> void:
 	GameManager.reset_game()
 	
 	_setup_peleliu_island_outposts()
+	_setup_environment_features()
 
 func _setup_peleliu_island_outposts() -> void:
 	var outpost_positions = [
@@ -86,6 +96,116 @@ func _setup_peleliu_island_outposts() -> void:
 			var outpost = outpost_scene.instantiate()
 			outpost.global_position = pos
 			outposts_container.add_child(outpost)
+
+func _setup_environment_features() -> void:
+	# 1. 🌊 흐르는 강 (River) 좌표
+	river_points = PackedVector2Array([
+		island_center + Vector2(-180, -680),
+		island_center + Vector2(-280, -480),
+		island_center + Vector2(-480, -220),
+		island_center + Vector2(-780, -20),
+		island_center + Vector2(-1150, 180),
+		island_center + Vector2(-1550, 280),
+		island_center + Vector2(-1950, 320)
+	])
+	
+	# 2. 흙길 (Dirt Supply Roads)
+	dirt_roads = [
+		# 활주로 ➔ 북부 움루브로골 산악
+		PackedVector2Array([
+			island_center + Vector2(0, -180),
+			island_center + Vector2(40, -380),
+			island_center + Vector2(-30, -560),
+			island_center + Vector2(0, -720)
+		]),
+		# 활주로 ➔ 남부 해안선 상륙지
+		PackedVector2Array([
+			island_center + Vector2(0, 180),
+			island_center + Vector2(-60, 420),
+			island_center + Vector2(20, 680),
+			island_center + Vector2(0, 920)
+		]),
+		# 활주로 ➔ 동부 전초기지
+		PackedVector2Array([
+			island_center + Vector2(320, 0),
+			island_center + Vector2(580, 80),
+			island_center + Vector2(860, 120),
+			island_center + Vector2(1150, 180)
+		])
+	]
+	
+	# 3. 언덕 (Hills with contour elevations)
+	hills = [
+		{"pos": island_center + Vector2(720, -480), "r": 230.0},
+		{"pos": island_center + Vector2(-760, 520), "r": 210.0},
+		{"pos": island_center + Vector2(820, 460), "r": 200.0}
+	]
+	
+	# 4. 동굴들 (Caves in the Limestone Ridge)
+	caves = [
+		island_center + Vector2(-320, -760),
+		island_center + Vector2(-120, -920),
+		island_center + Vector2(140, -890),
+		island_center + Vector2(360, -750)
+	]
+	
+	# 5. 참호선 (Zigzag Trenches)
+	trenches = [
+		PackedVector2Array([
+			island_center + Vector2(-450, -480),
+			island_center + Vector2(-420, -450),
+			island_center + Vector2(-460, -420),
+			island_center + Vector2(-430, -390)
+		]),
+		PackedVector2Array([
+			island_center + Vector2(450, -480),
+			island_center + Vector2(480, -450),
+			island_center + Vector2(440, -420),
+			island_center + Vector2(470, -390)
+		]),
+		PackedVector2Array([
+			island_center + Vector2(-220, 520),
+			island_center + Vector2(-180, 550),
+			island_center + Vector2(-230, 580),
+			island_center + Vector2(-190, 610)
+		])
+	]
+	
+	# 6. 96식 25mm 쌍열 대공화기 포좌 (Flak AA Pits)
+	flak_positions = [
+		island_center + Vector2(-460, -280),
+		island_center + Vector2(460, -280),
+		island_center + Vector2(-420, 260),
+		island_center + Vector2(420, 260),
+		island_center + Vector2(0, -560),
+		island_center + Vector2(0, 520)
+	]
+	
+	# 7. 🌴 260그루 3D RTS 열대 수목 (수많은 야자수와 정글 수목)
+	var rng = RandomNumberGenerator.new()
+	rng.seed = 19440915 # 고정 시드로 매 판 균일하고 아름다운 전장 지형 형성
+	
+	for i in range(270):
+		var angle = rng.randf() * TAU
+		var dist_x = rng.randf_range(280.0, island_radius_x - 70.0)
+		var dist_y = rng.randf_range(220.0, island_radius_y - 70.0)
+		var t_pos = island_center + Vector2(cos(angle) * dist_x, sin(angle) * dist_y)
+		
+		# 활주로 중심부(길이 650) 피하기
+		if t_pos.distance_to(island_center) < 320.0:
+			continue
+			
+		var tree_type = rng.randi_range(0, 2) # 0: 야자수, 1: 빽빽한 정글목, 2: 거목
+		var r = rng.randf_range(16.0, 32.0)
+		var col = Color(rng.randf_range(0.12, 0.22), rng.randf_range(0.26, 0.42), rng.randf_range(0.12, 0.2))
+		
+		jungle_trees.append({
+			"pos": t_pos,
+			"r": r,
+			"type": tree_type,
+			"col": col,
+			"shadow_offset": Vector2(18.0, 24.0) # 3D RTS 깊이감 그림자
+		})
 
 func _process(delta: float) -> void:
 	# 1. 10분 핵폭탄 시퀀스 진행 중일 때
@@ -168,6 +288,7 @@ func _start_allied_grand_airstrike() -> void:
 	is_airstrike_active = true
 	airstrike_run_timer = 0.0
 	fleet_fly_y = -2200.0
+	AudioManager.start_propeller_sound()
 	if hud and hud.has_method("show_event_banner"):
 		hud.show_event_banner("💥 [연합군 250대 대편대 공습] B-29 융단폭격 개시! 전장 초토화!", Color(1.0, 0.85, 0.2), 6.5)
 
@@ -186,6 +307,7 @@ func _process_allied_grand_airstrike(delta: float) -> void:
 	if airstrike_run_timer >= 7.5:
 		is_airstrike_active = false
 		airstrike_countdown = airstrike_interval
+		AudioManager.stop_propeller_sound()
 
 func spawn_falling_bomb(ground_pos: Vector2, bomber_pos: Vector2) -> void:
 	if falling_bomb_scene:
@@ -198,6 +320,8 @@ func trigger_nuclear_strike() -> void:
 	nuclear_timer = 0.0
 	nuclear_flash = 1.0
 	nuclear_shockwave_r = 0.0
+	AudioManager.stop_propeller_sound()
+	AudioManager.play_sfx("explosion", 5.0)
 	
 	if hud and hud.has_method("show_event_banner"):
 		hud.show_event_banner("☢️ [긴급 경보] 작전 제한시간 만료! 연합군 원자폭탄 투하 승인!", Color(1.0, 0.9, 0.1), 6.0)
@@ -379,7 +503,7 @@ func _draw() -> void:
 		draw_line(h_pos - Vector2(-10, 10), h_pos + Vector2(-10, 10), Color(0.2, 0.22, 0.25), 4.0)
 	
 	# =========================================================================
-	# 4. 🌴 울창한 열대 정글 숲 & 야자수 수관 (Tropical Jungle Base)
+	# 4. 🌴 울창한 열대 정글 숲 기저 지형 (Tropical Jungle Base)
 	# =========================================================================
 	var jungle_pts = _get_ellipse_points(island_center, island_radius_x, island_radius_y, 64)
 	draw_colored_polygon(jungle_pts, Color(0.16, 0.26, 0.15))
@@ -390,6 +514,46 @@ func _draw() -> void:
 		var r = 90.0 + sin(i) * 30.0
 		draw_circle(j_pos, r, Color(0.12, 0.22, 0.12, 0.6))
 		draw_circle(j_pos + Vector2(8, 8), r * 0.7, Color(0.2, 0.32, 0.18, 0.45))
+	
+	# =========================================================================
+	# 4-B. 🚜 보급 흙길 (3 Winding Dirt Supply Roads with Tire Ruts)
+	# =========================================================================
+	_draw_dirt_roads()
+	
+	# =========================================================================
+	# 4-C. 🌊 흐르는 강 (Animated Flowing River with Mud Banks & Wave Ripples)
+	# =========================================================================
+	_draw_flowing_river(wave_time)
+	
+	# =========================================================================
+	# 4-D. ⛰️ 등고선 입체 언덕 (3 Topographic Elevation Hills with Shaded Relief)
+	# =========================================================================
+	_draw_elevation_hills()
+	
+	# =========================================================================
+	# 4-E. ⛰️ 북부 움루브로골 산악 지대 (Bloody Nose Ridge & Limestone Caves)
+	# =========================================================================
+	var ridge_pts = PackedVector2Array([
+		island_center + Vector2(-520, -780),
+		island_center + Vector2(-220, -1080),
+		island_center + Vector2(280, -1040),
+		island_center + Vector2(520, -780),
+		island_center + Vector2(180, -660),
+		island_center + Vector2(-260, -680)
+	])
+	draw_colored_polygon(ridge_pts, Color(0.32, 0.28, 0.24))
+	draw_polyline(ridge_pts, Color(0.16, 0.14, 0.12), 6.0)
+	_draw_limestone_caves()
+	
+	# =========================================================================
+	# 4-F. 🪖 지그재그 방어 참호선 (Zigzag Defense Trenches & Sandbags)
+	# =========================================================================
+	_draw_trenches()
+	
+	# =========================================================================
+	# 4-G. 🛡️ 96식 25mm 대공화기 포좌 (Flak AA Gun Pits & Sandbag Berms)
+	# =========================================================================
+	_draw_flak_pits()
 	
 	# =========================================================================
 	# 5. 🛩️ 펠렐리우 십자 비행장 (2개의 교차 아스팔트 활주로 + 유도로 + 엄체호)
@@ -417,21 +581,7 @@ func _draw() -> void:
 	draw_rect(Rect2(island_center.x - 380, island_center.y + 110, 110, 80), Color(0.12, 0.12, 0.14), false, 3.0)
 	
 	# =========================================================================
-	# 6. ⛰️ 북부 움루브로골 산악 지대 (Bloody Nose Ridge 암석 절벽)
-	# =========================================================================
-	var ridge_pts = PackedVector2Array([
-		island_center + Vector2(-520, -780),
-		island_center + Vector2(-220, -1080),
-		island_center + Vector2(280, -1040),
-		island_center + Vector2(520, -780),
-		island_center + Vector2(180, -660),
-		island_center + Vector2(-260, -680)
-	])
-	draw_colored_polygon(ridge_pts, Color(0.32, 0.28, 0.24))
-	draw_polyline(ridge_pts, Color(0.16, 0.14, 0.12), 6.0)
-	
-	# =========================================================================
-	# 7. 🚜 무한궤도 자국 & 🌑 포탄 분화구 데칼 렌더링
+	# 6. 🚜 무한궤도 자국 & 🌑 포탄 분화구 데칼 렌더링
 	# =========================================================================
 	for tm in tread_marks:
 		var dir = Vector2.RIGHT.rotated(tm["rot"])
@@ -443,6 +593,11 @@ func _draw() -> void:
 		draw_circle(cr["pos"], cr["r"], Color(0.08, 0.07, 0.06, cr["alpha"] * 0.85))
 		draw_circle(cr["pos"], cr["r"] * 0.55, Color(0.04, 0.03, 0.02, cr["alpha"] * 0.95))
 		draw_arc(cr["pos"], cr["r"], 0, TAU, 16, Color(0.18, 0.14, 0.1, cr["alpha"] * 0.7), 2.0)
+	
+	# =========================================================================
+	# 7. 🌴 270그루 3D RTS 열대 수목 (야자수 & 정글림 입체 투영 그림자 + 수관)
+	# =========================================================================
+	_draw_jungle_trees(wave_time)
 	
 	# =========================================================================
 	# 8. 💨 디젤 배기 연무 파티클
@@ -555,3 +710,132 @@ func _get_ellipse_points(center: Vector2, rx: float, ry: float, segs: int) -> Pa
 		var a = i * (TAU / segs)
 		pts.append(center + Vector2(cos(a) * rx, sin(a) * ry))
 	return pts
+
+func _draw_dirt_roads() -> void:
+	for road in dirt_roads:
+		if road.size() < 2:
+			continue
+		# 흙길 바닥 (갈색 토양 베이스)
+		draw_polyline(road, Color(0.42, 0.33, 0.22), 34.0)
+		draw_polyline(road, Color(0.48, 0.38, 0.26), 26.0)
+		# 차량 바퀴 궤적 (좌우 2줄 흙길 바퀴 자국)
+		for i in range(road.size() - 1):
+			var p1 = road[i]
+			var p2 = road[i + 1]
+			var dir = (p2 - p1).normalized()
+			var normal = Vector2(-dir.y, dir.x) * 6.5
+			draw_line(p1 + normal, p2 + normal, Color(0.30, 0.22, 0.14, 0.6), 3.0)
+			draw_line(p1 - normal, p2 - normal, Color(0.30, 0.22, 0.14, 0.6), 3.0)
+
+func _draw_flowing_river(wave_time: float) -> void:
+	if river_points.size() < 2:
+		return
+	# 1. 진흙 둑 (River banks)
+	draw_polyline(river_points, Color(0.34, 0.26, 0.16), 56.0)
+	# 2. 강 수면 기저부 (청록빛 물)
+	draw_polyline(river_points, Color(0.09, 0.28, 0.34), 42.0)
+	# 3. 얕은 여울 반사광
+	draw_polyline(river_points, Color(0.16, 0.44, 0.50, 0.75), 28.0)
+	# 4. 흐르는 물결 애니메이션 (웨이브 잔물결)
+	for i in range(river_points.size() - 1):
+		var p1 = river_points[i]
+		var p2 = river_points[i + 1]
+		var flow_offset = sin(wave_time * 3.0 + i * 1.5) * 7.0
+		var flow_p1 = p1.lerp(p2, 0.25) + Vector2(flow_offset, flow_offset * 0.5)
+		var flow_p2 = p1.lerp(p2, 0.75) + Vector2(flow_offset, flow_offset * 0.5)
+		draw_line(flow_p1, flow_p2, Color(0.65, 0.90, 0.96, 0.45), 3.0)
+
+func _draw_elevation_hills() -> void:
+	for hill in hills:
+		var pos: Vector2 = hill["pos"]
+		var r: float = hill["r"]
+		# 3D RTS 언덕 등고선 (기저부 음영 -> 중간 능선 -> 정상 평지)
+		draw_circle(pos + Vector2(18, 22), r, Color(0.07, 0.12, 0.07, 0.45)) # 능선 거대 그림자
+		draw_circle(pos, r, Color(0.18, 0.28, 0.16)) # 1단계 사면
+		draw_arc(pos, r, 0, TAU, 32, Color(0.12, 0.20, 0.10), 4.0)
+		draw_circle(pos + Vector2(-6, -8), r * 0.7, Color(0.22, 0.34, 0.19)) # 2단계 고지
+		draw_arc(pos + Vector2(-6, -8), r * 0.7, 0, TAU, 28, Color(0.15, 0.24, 0.12), 3.0)
+		draw_circle(pos + Vector2(-12, -14), r * 0.4, Color(0.28, 0.40, 0.24)) # 3단계 정상
+		draw_arc(pos + Vector2(-12, -14), r * 0.4, 0, TAU, 24, Color(0.38, 0.52, 0.32, 0.6), 2.5)
+
+func _draw_limestone_caves() -> void:
+	for c_pos in caves:
+		# 절벽면 동굴 입구
+		draw_circle(c_pos + Vector2(6, 6), 28.0, Color(0.04, 0.04, 0.04, 0.7)) # 외곽 암석 음영
+		draw_circle(c_pos, 22.0, Color(0.42, 0.38, 0.34)) # 석회암 바위 테두리
+		draw_rect(Rect2(c_pos.x - 14, c_pos.y - 12, 28, 24), Color(0.03, 0.03, 0.03)) # 칠흑 같은 동굴 내부
+		# 목재 보강 기둥 (Timber supports)
+		draw_line(c_pos + Vector2(-12, -12), c_pos + Vector2(-12, 12), Color(0.28, 0.18, 0.10), 3.0)
+		draw_line(c_pos + Vector2(12, -12), c_pos + Vector2(12, 12), Color(0.28, 0.18, 0.10), 3.0)
+		draw_line(c_pos + Vector2(-14, -10), c_pos + Vector2(14, -10), Color(0.32, 0.20, 0.12), 4.0)
+
+func _draw_trenches() -> void:
+	for trench in trenches:
+		if trench.size() < 2:
+			continue
+		# 1. 굴착된 참호 구덩이 (어두운 토양)
+		draw_polyline(trench, Color(0.16, 0.12, 0.08), 16.0)
+		# 2. 바닥 통나무 발판 (Duckboards)
+		draw_polyline(trench, Color(0.32, 0.24, 0.16), 8.0)
+		# 3. 참호 전면 모래주머니 방벽 (Sandbag parapets)
+		for i in range(trench.size()):
+			var p = trench[i]
+			draw_circle(p + Vector2(-6, -6), 4.5, Color(0.72, 0.68, 0.54))
+			draw_circle(p + Vector2(6, 6), 4.5, Color(0.68, 0.64, 0.50))
+
+func _draw_flak_pits() -> void:
+	for f_pos in flak_positions:
+		# 1. 원형 모래주머니/토사 방호벽 (Revetment)
+		draw_circle(f_pos + Vector2(6, 8), 24.0, Color(0.08, 0.08, 0.08, 0.45))
+		draw_circle(f_pos, 24.0, Color(0.64, 0.58, 0.46)) # 모래주머니 벽
+		draw_circle(f_pos, 18.0, Color(0.18, 0.15, 0.12)) # 포좌 내부 구덩이
+		# 2. 포가 회전 베이스
+		draw_circle(f_pos, 7.0, Color(0.30, 0.32, 0.34))
+		# 3. 96식 25mm 쌍열 대공포신
+		draw_line(f_pos + Vector2(-3, 0), f_pos + Vector2(-3, -22), Color(0.15, 0.16, 0.18), 3.0)
+		draw_line(f_pos + Vector2(3, 0), f_pos + Vector2(3, -22), Color(0.15, 0.16, 0.18), 3.0)
+		# 소염기
+		draw_line(f_pos + Vector2(-5, -22), f_pos + Vector2(-1, -22), Color(0.1, 0.1, 0.1), 2.0)
+		draw_line(f_pos + Vector2(1, -22), f_pos + Vector2(5, -22), Color(0.1, 0.1, 0.1), 2.0)
+
+func _draw_jungle_trees(wave_time: float) -> void:
+	# 1단계: 모든 수목의 3D 입체 투영 그림자 (남동쪽 방향)
+	for t in jungle_trees:
+		var s_pos: Vector2 = t["pos"] + t["shadow_offset"]
+		var r: float = t["r"]
+		draw_circle(s_pos, r * 1.05, Color(0.03, 0.06, 0.03, 0.42))
+		
+	# 2단계: 수목 기둥 & 본체 캐노피
+	for i in range(jungle_trees.size()):
+		var t = jungle_trees[i]
+		var pos: Vector2 = t["pos"]
+		var r: float = t["r"]
+		var t_type: int = t["type"]
+		var base_col: Color = t["col"]
+		
+		# 밑동 갈색 나무줄기
+		draw_circle(pos, r * 0.28, Color(0.35, 0.25, 0.15))
+		
+		var sway = sin(wave_time * 2.0 + float(i) * 0.7) * 2.5
+		var sway_pos = pos + Vector2(sway, sway * 0.4)
+		
+		if t_type == 0:
+			# 🌴 펠렐리우 야자수: 중심에서 뻗어나가는 6갈래 야자 잎
+			for leaf_idx in range(6):
+				var angle = leaf_idx * (TAU / 6.0) + sway * 0.05
+				var leaf_end = sway_pos + Vector2.RIGHT.rotated(angle) * (r * 1.25)
+				draw_line(sway_pos, leaf_end, base_col.lightened(0.15), 4.0)
+				# 잎맥 장식
+				draw_circle(leaf_end, 3.5, base_col)
+			# 야자 열매 중심부
+			draw_circle(sway_pos, 4.0, Color(0.28, 0.18, 0.08))
+		elif t_type == 1:
+			# 🌳 빽빽한 정글 활엽수: 겹겹이 쌓인 다층 캐노피
+			draw_circle(sway_pos, r, base_col.darkened(0.2))
+			draw_circle(sway_pos + Vector2(-r * 0.2, -r * 0.2), r * 0.75, base_col)
+			draw_circle(sway_pos + Vector2(-r * 0.35, -r * 0.35), r * 0.45, base_col.lightened(0.25))
+		else:
+			# 🌲 거목 / 벵골보리수: 대형 입체 수관
+			draw_circle(sway_pos, r * 1.15, base_col.darkened(0.3))
+			draw_circle(sway_pos + Vector2(3, -4), r * 0.9, base_col)
+			draw_circle(sway_pos + Vector2(-r * 0.25, -r * 0.3), r * 0.5, base_col.lightened(0.3))

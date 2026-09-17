@@ -56,6 +56,9 @@ func _fire_coastal_cannon() -> void:
 	if not main_scene or not is_instance_valid(target_player):
 		return
 		
+	# 🔊 140mm 해안포 발사 굉음
+	AudioManager.play_sfx("fortress", 2.8)
+	
 	var dir = (target_player.global_position - global_position).normalized()
 	if main_scene.has_method("spawn_cannon_shell"):
 		var muzzle = global_position + dir * 65.0
@@ -63,7 +66,7 @@ func _fire_coastal_cannon() -> void:
 		# 화면 진동
 		var heads = get_tree().get_nodes_in_group("player_head")
 		if not heads.is_empty() and heads[0].get("camera_shake_amount") != null:
-			heads[0].camera_shake_amount = 8.0
+			heads[0].camera_shake_amount = 10.0
 
 func _fire_hmg_burst() -> void:
 	var main_scene = get_tree().current_scene
@@ -84,6 +87,7 @@ func take_damage(amount: float) -> void:
 
 func _die() -> void:
 	EventBus.enemy_killed.emit(global_position, "BOSS_FORTRESS")
+	AudioManager.play_sfx("explosion", 3.5)
 	var main_scene = get_tree().current_scene
 	if main_scene and main_scene.has_method("spawn_heavy_explosion"):
 		main_scene.spawn_heavy_explosion(global_position, 220.0)

@@ -45,6 +45,9 @@ func _detonate() -> void:
 		if main_scene.has_method("spawn_heavy_explosion"):
 			main_scene.spawn_heavy_explosion(target_pos, blast_radius)
 	
+	# 🔊 고폭탄 지면 격돌 폭발음
+	AudioManager.play_sfx("explosion", 3.0)
+	
 	# 반경 내 적들 궤멸
 	var enemies = get_tree().get_nodes_in_group("enemies")
 	for enemy in enemies:

@@ -49,17 +49,22 @@ func _explode() -> void:
 	set_deferred("monitoring", false)
 	set_deferred("monitorable", false)
 	
+	# 🔊 포탄 폭발 사운드 재생
+	AudioManager.play_sfx("explosion", 1.2)
+	
+	var main_scene = get_tree().current_scene
+	if main_scene and main_scene.has_method("add_crater_decal"):
+		main_scene.add_crater_decal(global_position, 26.0)
+	
 	# 반경 내 모든 적 일괄 폭발 데미지
 	var enemies = get_tree().get_nodes_in_group("enemies")
 	for enemy in enemies:
 		if is_instance_valid(enemy):
 			var dist = global_position.distance_to(enemy.global_position)
 			if dist <= explosion_radius:
-				# 거리에 따른 감쇄 데미지
 				var falloff = 1.0 - (dist / explosion_radius) * 0.4
 				if enemy.has_method("take_damage"):
 					enemy.take_damage(damage * falloff)
-				# 넉백 적용
 				if enemy is CharacterBody2D:
 					var knock_dir = (enemy.global_position - global_position).normalized()
 					enemy.velocity += knock_dir * 380.0
