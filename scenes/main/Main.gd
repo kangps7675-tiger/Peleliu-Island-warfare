@@ -144,12 +144,16 @@ func _spawn_fortress_boss() -> void:
 		var boss = fortress_boss_scene.instantiate()
 		boss.global_position = island_center + Vector2(0, -820)
 		enemies_container.add_child(boss)
+	if hud and hud.has_method("show_event_banner"):
+		hud.show_event_banner("⛰️ [적 요새포 가동] 북부 움루브로골 동굴 요새포가 포격을 시작했습니다!", Color(1.0, 0.4, 0.2), 5.0)
 
 func _spawn_yamato_boss() -> void:
 	if yamato_boss_scene:
 		var boss = yamato_boss_scene.instantiate()
 		boss.global_position = island_center + Vector2(0, 1900)
 		enemies_container.add_child(boss)
+	if hud and hud.has_method("show_event_banner"):
+		hud.show_event_banner("⚓ [거대전함 출현] 해상에 일본 해군 전함 야마토가 나타났습니다!", Color(1.0, 0.3, 0.3), 5.0)
 
 func _constrain_snake_to_ocean_limit() -> void:
 	if not is_instance_valid(snake_head):
@@ -164,6 +168,8 @@ func _start_allied_grand_airstrike() -> void:
 	is_airstrike_active = true
 	airstrike_run_timer = 0.0
 	fleet_fly_y = -2200.0
+	if hud and hud.has_method("show_event_banner"):
+		hud.show_event_banner("💥 [연합군 250대 대편대 공습] B-29 융단폭격 개시! 전장 초토화!", Color(1.0, 0.85, 0.2), 6.5)
 
 func _process_allied_grand_airstrike(delta: float) -> void:
 	airstrike_run_timer += delta
@@ -192,6 +198,9 @@ func trigger_nuclear_strike() -> void:
 	nuclear_timer = 0.0
 	nuclear_flash = 1.0
 	nuclear_shockwave_r = 0.0
+	
+	if hud and hud.has_method("show_event_banner"):
+		hud.show_event_banner("☢️ [긴급 경보] 작전 제한시간 만료! 연합군 원자폭탄 투하 승인!", Color(1.0, 0.9, 0.1), 6.0)
 	
 	# 화면 진동
 	if is_instance_valid(snake_head) and snake_head.get("camera_shake_amount") != null:

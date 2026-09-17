@@ -2,74 +2,95 @@ extends CanvasLayer
 class_name HUD
 
 @onready var hp_bar: ProgressBar = $MarginContainer/VBoxContainer/TopBar/HPBar
-@onready var length_label: Label = $MarginContainer/VBoxContainer/TopBar/LengthLabel
-@onready var time_box: PanelContainer = $MarginContainer/VBoxContainer/TopBar/TimeBox
-@onready var time_label: Label = $MarginContainer/VBoxContainer/TopBar/TimeBox/Margin/TimeLabel
-@onready var tier_label: Label = $MarginContainer/VBoxContainer/TopBar/TierLabel
-@onready var airstrike_label: Label = $MarginContainer/VBoxContainer/TopBar/AirstrikeLabel
 @onready var kill_label: Label = $MarginContainer/VBoxContainer/TopBar/KillLabel
-@onready var air_raid_banner: Label = $MarginContainer/VBoxContainer/AirRaidBanner
-@onready var grand_airstrike_banner: Label = $MarginContainer/VBoxContainer/GrandAirstrikeBanner
-@onready var nuclear_banner: Label = $MarginContainer/VBoxContainer/NuclearAlertBanner
+@onready var supply_label: Label = $MarginContainer/VBoxContainer/TopBar/SupplyLabel
+@onready var time_label: Label = $MarginContainer/VBoxContainer/TopBar/TimeBox/Margin/TimeLabel
+@onready var tier_badge: Label = $MarginContainer/VBoxContainer/TopBar/TierBadge
+
+@onready var event_banner: PanelContainer = $MarginContainer/VBoxContainer/EventBannerContainer/EventBanner
+@onready var event_label: Label = $MarginContainer/VBoxContainer/EventBannerContainer/EventBanner/Margin/EventLabel
+
 @onready var victory_panel: PanelContainer = $VictoryPanel
 @onready var victory_stats: Label = $VictoryPanel/Margin/VBox/StatsLabel
 @onready var encircle_flash: ColorRect = $EncircleFlash
 
+var banner_timer: float = 0.0
+var banner_tween: Tween = null
+var last_reported_tier: int = 1
+var kamikaze_announced: bool = false
+
 func _ready() -> void:
 	EventBus.player_damaged.connect(_on_player_damaged)
-	EventBus.segment_added.connect(_on_segment_added)
 	EventBus.loop_completed.connect(_on_loop_completed)
 	
-	air_raid_banner.visible = false
-	grand_airstrike_banner.visible = false
-	nuclear_banner.visible = false
+	event_banner.visible = false
+	event_banner.modulate.a = 0.0
 	victory_panel.visible = false
 	encircle_flash.modulate.a = 0.0
+	
+	# 작전 개시 시점에만 첫 4.5초간 작전 목표 안내문 출력!
+	show_event_banner("⚔️ [작전 개시] 펠렐리우 섬 상륙: 10분간 생존하여 섬을 장악하라!", Color(1.0, 0.9, 0.3), 4.5)
 
-func _process(_delta: float) -> void:
-	# 10분 카운트다운 표시 (상단 중앙 제한시간 창)
+func _process(delta: float) -> void:
+	# 1. 상단 중앙 10분 카운트다운 타이머
 	var mins = int(GameManager.countdown_time) / 60
 	var secs = int(GameManager.countdown_time) % 60
-	time_label.text = "⏱ 작전 제한시간: %02d:%02d" % [mins, secs]
+	time_label.text = "⏱ %02d:%02d" % [mins, secs]
 	
-	kill_label.text = "격파: %d" % GameManager.kill_count
-	length_label.text = "마디: %d개" % GameManager.current_snake_length
-	tier_label.text = "거대화: TIER %d" % GameManager.current_scale_tier
+	# 2. 전투 통계 표시
+	kill_label.text = "🎯 격파: %d" % GameManager.kill_count
+	supply_label.text = "📦 보급: %d" % GameManager.total_supplies
 	
-	# 1분 주기 연합군 대공습 타이머
-	var main_scene = get_tree().current_scene
-	if main_scene and "airstrike_countdown" in main_scene:
-		var air_secs = int(main_scene.airstrike_countdown)
-		airstrike_label.text = "✈️ 공습 대기: %02d초" % air_secs
+	# 3. 티어 배지는 1티어 초과 업그레이드 시에만 깔끔하게 표시
+	if GameManager.current_scale_tier > 1:
+		tier_badge.visible = true
+		tier_badge.text = "TIER %d" % GameManager.current_scale_tier
+	else:
+		tier_badge.visible = false
 		
-		# 250대 무차별 폭격 중일 때
-		if main_scene.get("is_airstrike_active"):
-			grand_airstrike_banner.visible = true
-			var pulse_gold = (sin(Time.get_ticks_msec() * 0.02) + 1.0) * 0.5
-			grand_airstrike_banner.modulate = Color(1.0, 0.9, 0.2 + pulse_gold * 0.3)
-		else:
-			grand_airstrike_banner.visible = false
+	# 4. 거대화 티어 변경 시점에만 안내문 팝업
+	if GameManager.current_scale_tier > last_reported_tier:
+		last_reported_tier = GameManager.current_scale_tier
+		show_event_banner("⭐ [전차 강화] 보급 달성! 차체 TIER %d 거대화 완료!" % last_reported_tier, Color(0.4, 0.9, 1.0), 3.5)
 	
-	# 핵폭탄 투하 임박 경보 (남은 시간 15초 이하)
-	if GameManager.countdown_time <= 15.0 and GameManager.countdown_time > 0.0:
-		nuclear_banner.visible = true
-		var pulse = (sin(Time.get_ticks_msec() * 0.02) + 1.0) * 0.5
-		nuclear_banner.modulate = Color(1.0, 0.9, 0.1, 0.7 + pulse * 0.3)
-	elif GameManager.countdown_time <= 0.0:
-		nuclear_banner.visible = false
-		
-	# 가미카제 경보 배너
+	# 5. 가미카제 출현 시점에만 안내문 팝업
 	var kamikazes = get_tree().get_nodes_in_group("kamikaze")
 	if not kamikazes.is_empty():
-		air_raid_banner.visible = true
-		var pulse_red = (sin(Time.get_ticks_msec() * 0.015) + 1.0) * 0.5
-		air_raid_banner.modulate = Color(1.0, 0.2 + pulse_red * 0.4, 0.2, 0.9)
+		if not kamikaze_announced:
+			kamikaze_announced = true
+			show_event_banner("🚨 [공습 경보] 제로센 가미카제 급강하 중! 30MM 대공포 집중 사격!", Color(1.0, 0.3, 0.3), 3.5)
 	else:
-		air_raid_banner.visible = false
+		kamikaze_announced = false
+		
+	# 6. 배너 타이머 관리
+	if banner_timer > 0.0:
+		banner_timer -= delta
+		if banner_timer <= 0.0:
+			_fade_out_banner()
+
+## 이벤트 발생 시에만 그때그때 나타나는 다이내믹 알림 배너
+func show_event_banner(message: String, col: Color, duration: float = 3.5) -> void:
+	event_label.text = message
+	event_label.modulate = col
+	event_banner.visible = true
+	banner_timer = duration
+	
+	if banner_tween and banner_tween.is_valid():
+		banner_tween.kill()
+		
+	banner_tween = create_tween()
+	banner_tween.tween_property(event_banner, "modulate:a", 1.0, 0.25).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+
+func _fade_out_banner() -> void:
+	if banner_tween and banner_tween.is_valid():
+		banner_tween.kill()
+	banner_tween = create_tween()
+	banner_tween.tween_property(event_banner, "modulate:a", 0.0, 0.4).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_IN)
+	banner_tween.tween_callback(func(): event_banner.visible = false)
 
 func show_victory() -> void:
 	victory_panel.visible = true
-	victory_stats.text = "최종 격파 수: %d | 획득 군수품: %d | 전차 등급: TIER %d" % [
+	victory_stats.text = "최종 격파 수: %d | 획득 군수품: %d | 최종 전차 등급: TIER %d" % [
 		GameManager.kill_count,
 		GameManager.total_supplies,
 		GameManager.current_scale_tier
@@ -78,9 +99,6 @@ func show_victory() -> void:
 func _on_player_damaged(curr_hp: int, max_hp: int) -> void:
 	hp_bar.max_value = max_hp
 	hp_bar.value = curr_hp
-
-func _on_segment_added(length: int) -> void:
-	length_label.text = "마디: %d개" % length
 
 func _on_loop_completed(_polygon: PackedVector2Array, _enemies: Array) -> void:
 	var tween = create_tween()

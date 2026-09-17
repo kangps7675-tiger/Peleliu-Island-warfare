@@ -1,9 +1,9 @@
-[gd_scene load_steps=3 format=3]
+[gd_scene load_steps=5 format=3]
 
 [ext_resource type="Script" path="res://scenes/ui/HUD.gd" id="1_hud"]
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_time"]
-bg_color = Color(0.12, 0.14, 0.18, 0.9)
+bg_color = Color(0.1, 0.12, 0.15, 0.92)
 border_width_left = 2
 border_width_top = 2
 border_width_right = 2
@@ -13,6 +13,30 @@ corner_radius_top_left = 6
 corner_radius_top_right = 6
 corner_radius_bottom_right = 6
 corner_radius_bottom_left = 6
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_banner"]
+bg_color = Color(0.08, 0.1, 0.14, 0.92)
+border_width_left = 3
+border_width_top = 2
+border_width_right = 3
+border_width_bottom = 2
+border_color = Color(1, 0.8, 0.2, 0.9)
+corner_radius_top_left = 8
+corner_radius_top_right = 8
+corner_radius_bottom_right = 8
+corner_radius_bottom_left = 8
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_victory"]
+bg_color = Color(0.08, 0.1, 0.14, 0.96)
+border_width_left = 3
+border_width_top = 3
+border_width_right = 3
+border_width_bottom = 3
+border_color = Color(1, 0.85, 0.25, 1)
+corner_radius_top_left = 12
+corner_radius_top_right = 12
+corner_radius_bottom_right = 12
+corner_radius_bottom_left = 12
 
 [node name="HUD" type="CanvasLayer"]
 script = ExtResource("1_hud")
@@ -33,15 +57,15 @@ anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
 mouse_filter = 2
-theme_override_constants/margin_left = 24
+theme_override_constants/margin_left = 28
 theme_override_constants/margin_top = 16
-theme_override_constants/margin_right = 24
+theme_override_constants/margin_right = 28
 theme_override_constants/margin_bottom = 16
 
 [node name="VBoxContainer" type="VBoxContainer" parent="MarginContainer"]
 layout_mode = 2
 mouse_filter = 2
-theme_override_constants/separation = 8
+theme_override_constants/separation = 12
 
 [node name="TopBar" type="HBoxContainer" parent="MarginContainer/VBoxContainer"]
 layout_mode = 2
@@ -49,22 +73,23 @@ mouse_filter = 2
 theme_override_constants/separation = 20
 
 [node name="HPBar" type="ProgressBar" parent="MarginContainer/VBoxContainer/TopBar"]
-custom_minimum_size = Vector2(180, 24)
+custom_minimum_size = Vector2(190, 24)
 layout_mode = 2
 size_flags_vertical = 4
 value = 100.0
 show_percentage = false
 
-[node name="LengthLabel" type="Label" parent="MarginContainer/VBoxContainer/TopBar"]
+[node name="KillLabel" type="Label" parent="MarginContainer/VBoxContainer/TopBar"]
 layout_mode = 2
+theme_override_colors/font_color = Color(0.9, 0.9, 0.9, 1)
 theme_override_font_sizes/font_size = 17
-text = "마디: 5개"
+text = "🎯 격파: 0"
 
-[node name="TierLabel" type="Label" parent="MarginContainer/VBoxContainer/TopBar"]
+[node name="SupplyLabel" type="Label" parent="MarginContainer/VBoxContainer/TopBar"]
 layout_mode = 2
-theme_override_colors/font_color = Color(0.4, 0.9, 1, 1)
+theme_override_colors/font_color = Color(1, 0.85, 0.3, 1)
 theme_override_font_sizes/font_size = 17
-text = "거대화: TIER 1"
+text = "📦 보급: 0"
 
 [node name="SpacerLeft" type="Control" parent="MarginContainer/VBoxContainer/TopBar"]
 layout_mode = 2
@@ -77,16 +102,16 @@ theme_override_styles/panel = SubResource("StyleBoxFlat_time")
 
 [node name="Margin" type="MarginContainer" parent="MarginContainer/VBoxContainer/TopBar/TimeBox"]
 layout_mode = 2
-theme_override_constants/margin_left = 16
+theme_override_constants/margin_left = 20
 theme_override_constants/margin_top = 6
-theme_override_constants/margin_right = 16
+theme_override_constants/margin_right = 20
 theme_override_constants/margin_bottom = 6
 
 [node name="TimeLabel" type="Label" parent="MarginContainer/VBoxContainer/TopBar/TimeBox/Margin"]
 layout_mode = 2
 theme_override_colors/font_color = Color(1, 0.9, 0.4, 1)
 theme_override_font_sizes/font_size = 22
-text = "⏱ 작전 제한시간: 15:00"
+text = "⏱ 10:00"
 horizontal_alignment = 1
 
 [node name="SpacerRight" type="Control" parent="MarginContainer/VBoxContainer/TopBar"]
@@ -94,39 +119,34 @@ layout_mode = 2
 size_flags_horizontal = 3
 mouse_filter = 2
 
-[node name="AirstrikeLabel" type="Label" parent="MarginContainer/VBoxContainer/TopBar"]
+[node name="TierBadge" type="Label" parent="MarginContainer/VBoxContainer/TopBar"]
+visible = false
 layout_mode = 2
-theme_override_colors/font_color = Color(1, 0.6, 0.2, 1)
+theme_override_colors/font_color = Color(0.4, 0.9, 1, 1)
 theme_override_font_sizes/font_size = 17
-text = "✈️ 공습 대기: 60초"
+text = "TIER 1"
 
-[node name="KillLabel" type="Label" parent="MarginContainer/VBoxContainer/TopBar"]
+[node name="EventBannerContainer" type="CenterContainer" parent="MarginContainer/VBoxContainer"]
 layout_mode = 2
-theme_override_font_sizes/font_size = 17
-text = "격파: 0"
+mouse_filter = 2
 
-[node name="GrandAirstrikeBanner" type="Label" parent="MarginContainer/VBoxContainer"]
+[node name="EventBanner" type="PanelContainer" parent="MarginContainer/VBoxContainer/EventBannerContainer"]
+visible = false
 layout_mode = 2
-size_flags_horizontal = 4
-theme_override_colors/font_color = Color(1, 0.85, 0.2, 1)
-theme_override_font_sizes/font_size = 24
-text = "💥 [연합군 250대 대편대 공습] 무차별 융단폭격 개시! 전장 초토화 진행 중! 💥"
-horizontal_alignment = 1
+theme_override_styles/panel = SubResource("StyleBoxFlat_banner")
 
-[node name="AirRaidBanner" type="Label" parent="MarginContainer/VBoxContainer"]
+[node name="Margin" type="MarginContainer" parent="MarginContainer/VBoxContainer/EventBannerContainer/EventBanner"]
 layout_mode = 2
-size_flags_horizontal = 4
-theme_override_colors/font_color = Color(1, 0.2, 0.2, 1)
+theme_override_constants/margin_left = 28
+theme_override_constants/margin_top = 10
+theme_override_constants/margin_right = 28
+theme_override_constants/margin_bottom = 10
+
+[node name="EventLabel" type="Label" parent="MarginContainer/VBoxContainer/EventBannerContainer/EventBanner/Margin"]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 0.9, 0.3, 1)
 theme_override_font_sizes/font_size = 22
-text = "🚨 [공습 경보] 가미카제 자폭 전투기 급강하 중! 30MM 대공포 집중 사격! 🚨"
-horizontal_alignment = 1
-
-[node name="NuclearAlertBanner" type="Label" parent="MarginContainer/VBoxContainer"]
-layout_mode = 2
-size_flags_horizontal = 4
-theme_override_colors/font_color = Color(1, 0.9, 0.1, 1)
-theme_override_font_sizes/font_size = 24
-text = "☢️ [긴급 경보] 작전 제한시간 만료 임박! 연합군 원자폭탄(Nuclear Strike) 투하 승인! ☢️"
+text = "알림 내용"
 horizontal_alignment = 1
 
 [node name="VictoryPanel" type="PanelContainer" parent="."]
@@ -137,17 +157,18 @@ anchor_top = 0.5
 anchor_right = 0.5
 anchor_bottom = 0.5
 offset_left = -340.0
-offset_top = -200.0
+offset_top = -180.0
 offset_right = 340.0
-offset_bottom = 200.0
+offset_bottom = 180.0
 grow_horizontal = 2
 grow_vertical = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_victory")
 
 [node name="Margin" type="MarginContainer" parent="VictoryPanel"]
 layout_mode = 2
-theme_override_constants/margin_left = 32
+theme_override_constants/margin_left = 36
 theme_override_constants/margin_top = 28
-theme_override_constants/margin_right = 32
+theme_override_constants/margin_right = 36
 theme_override_constants/margin_bottom = 28
 
 [node name="VBox" type="VBoxContainer" parent="VictoryPanel/Margin"]
